@@ -12,7 +12,7 @@ export interface GroupRules { amount: number; currency: 'NGN'; frequency: Freque
 export interface Contribution { memberId: string; amount: number; state: MoneyState; at: string | null; }
 export interface Cycle { number: number; of: number; month: string; dueDate: string; payoutDate: string; payoutTo: string; contributions: Contribution[]; summary: { inThePot: number; confirming: number; pending: number; potTotal: number; target: number }; }
 export interface PayoutTurn { turn: number; memberId: string; date: string; amount: number; status: TurnStatus; }
-export interface Group { id: string; name: string; organiserId: string; rules: GroupRules; wallet?: { heldBy: string; balanceThisCycle: number }; currentCycle?: Cycle; payoutCalendar?: PayoutTurn[]; inviteLink?: string; }
+export interface Group { id: string; name: string; organiserId: string; code?: string; status?: string; rules: GroupRules; wallet?: { heldBy: string; balanceThisCycle: number; bankName?: string; accountNumber?: string; totalPotSaved?: number }; currentCycle?: Cycle; payoutCalendar?: PayoutTurn[]; inviteLink?: string; members?: Member[]; }
 export interface ActivityItem { who: string; title: string; detail: string; amount: number; state: MoneyState; }
 
 // Money-state transitions (see BUILD-SPEC section 6)

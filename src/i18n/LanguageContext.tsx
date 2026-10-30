@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import en from './en.json';
 import ha from './ha.json';
-import ar from './ar.json';
 
-export type AppLanguage = 'en' | 'ha' | 'ar';
+export type AppLanguage = 'en' | 'ha';
 export type TranslationKey = keyof typeof en;
 
 interface LanguageContextType {
@@ -13,7 +12,7 @@ interface LanguageContextType {
   isRtl: boolean;
 }
 
-const translations: Record<AppLanguage, Record<string, string>> = { en, ha, ar };
+const translations: Record<AppLanguage, Record<string, string>> = { en, ha };
 
 const LanguageContext = createContext<LanguageContextType>({
   language: 'en',
@@ -25,13 +24,12 @@ const LanguageContext = createContext<LanguageContextType>({
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<AppLanguage>('en');
 
-  const isRtl = language === 'ar';
+  const isRtl = false;
 
   useEffect(() => {
-    // Keep document dir synchronized if needed
-    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.dir = 'ltr';
     document.documentElement.lang = language;
-  }, [language, isRtl]);
+  }, [language]);
 
   const t = (key: TranslationKey, params?: Record<string, string | number>): string => {
     const dict = translations[language] || translations.en;

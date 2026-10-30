@@ -18,9 +18,16 @@ export const M10CreateGroupReview: React.FC = () => {
     return t('drawAtStart');
   };
 
-  const handleCreate = () => {
-    commitNewGroup();
-    navigate('/groups/g-kasuwa-stall-weekly/invite');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleCreate = async () => {
+    setIsSubmitting(true);
+    try {
+      await commitNewGroup();
+      navigate('/groups/invite');
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   return (

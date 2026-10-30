@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "entities": {
+    "User": {
+      "collection": "users",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": true },
+        "displayName": { "type": "string", "required": true },
+        "initials": { "type": "string", "required": true },
+        "avatarColor": { "type": "string", "required": true },
+        "nin": { "type": "string", "required": false },
+        "ninVerified": { "type": "boolean", "required": true },
+        "ninVerifiedAt": { "type": "string", "required": false },
+        "partnerBank": { "type": "map", "required": false },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "Group": {
+      "collection": "groups",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "code": { "type": "string", "required": true },
+        "organiserId": { "type": "string", "required": true },
+        "organiserName": { "type": "string", "required": true },
+        "rules": { "type": "map", "required": true },
+        "wallet": { "type": "map", "required": true },
+        "currentCycle": { "type": "map", "required": true },
+        "members": { "type": "list", "required": true },
+        "payoutCalendar": { "type": "list", "required": true },
+        "status": { "type": "string", "required": true },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "Contribution": {
+      "collection": "groups/{groupId}/contributions",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "groupId": { "type": "string", "required": true },
+        "memberId": { "type": "string", "required": true },
+        "memberName": { "type": "string", "required": true },
+        "cycleNumber": { "type": "number", "required": true },
+        "amount": { "type": "number", "required": true },
+        "paymentType": { "type": "string", "required": true },
+        "paymentMethod": { "type": "string", "required": true },
+        "state": { "type": "string", "required": true },
+        "paidAt": { "type": "string", "required": true }
+      }
+    },
+    "Activity": {
+      "collection": "groups/{groupId}/activities",
+      "fields": {
+        "id": { "type": "string", "required": true },
+        "groupId": { "type": "string", "required": true },
+        "who": { "type": "string", "required": true },
+        "whoName": { "type": "string", "required": true },
+        "title": { "type": "string", "required": true },
+        "detail": { "type": "string", "required": true },
+        "amount": { "type": "number", "required": true },
+        "state": { "type": "string", "required": true },
+        "timestamp": { "type": "string", "required": true }
+      }
+    }
+  }
+}

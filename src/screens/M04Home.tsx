@@ -12,6 +12,8 @@ import { formatNaira } from '../data/types';
 export const M04Home: React.FC = () => {
   const {
     navigate,
+    currentUser,
+    groups,
     hasPaidUserContribution,
     userContributionState,
     potTotal,
@@ -19,12 +21,19 @@ export const M04Home: React.FC = () => {
     userPaidAmount,
     userRemainingBalance,
     totalCycleContribution,
+    partnerBank,
+    setPartnerBankModalOpen,
   } = useApp();
   const { language, t } = useLanguage();
 
   const isFullyPaid = hasPaidUserContribution || userRemainingBalance <= 0;
   const isPartiallyPaid = userPaidAmount > 0 && userRemainingBalance > 0;
-  const progressPercent = Math.round((potConfirmedCount / 10) * 100);
+  const activeGroup = groups[0];
+  const groupSize = activeGroup?.rules?.size || 10;
+  const targetPot = (activeGroup?.rules?.amount || 20000) * groupSize;
+  const progressPercent = Math.min(100, Math.round((potConfirmedCount / groupSize) * 100));
+
+  const firstName = currentUser.name.split(' ')[0] || 'Member';
 
   return (
     <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
@@ -38,24 +47,49 @@ export const M04Home: React.FC = () => {
               {t('dateMonday')}
             </span>
             <h1 className="font-heading font-bold text-[24px] text-[#0B3D2E] leading-tight">
-              {t('greeting')}
+              {language === 'ha' ? `Sannu, ${firstName}` : `Welcome, ${firstName}`}
             </h1>
           </div>
 
-          {/* Bell Notification Button with Red Dot */}
-          <button
-            type="button"
-            onClick={() => navigate('/activity')}
-            aria-label="Notifications"
-            className="w-10 h-10 rounded-full bg-white border border-[#E3DDCF] flex items-center justify-center text-[#0B3D2E] relative cursor-pointer active:scale-95 transition-all shadow-sm"
-          >
-            <Icon name="bell" size={18} strokeWidth={2.2} />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#B42318] ring-2 ring-white" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Bell Notification Button */}
+            <button
+              type="button"
+              onClick={() => navigate('/activity')}
+              aria-label="Notifications"
+              className="w-10 h-10 rounded-full bg-white border border-[#E3DDCF] flex items-center justify-center text-[#0B3D2E] relative cursor-pointer active:scale-95 transition-all shadow-sm"
+            >
+              <Icon name="bell" size={18} strokeWidth={2.2} />
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#B42318] ring-2 ring-white" />
+            </button>
+          </div>
         </div>
 
         <div className="px-5 space-y-4 pb-6">
-          {/* Reminder banner: shows remaining balance if partially paid, full if not paid, hidden if completed */}
+          {/* Partner Bank Escrow Badge */}
+          <div
+            onClick={() => setPartnerBankModalOpen(true)}
+            className="p-3 rounded-[14px] bg-white border border-[#E3DDCF] flex items-center justify-between cursor-pointer hover:border-[#0F8A5F] shadow-xs transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#E3F4EC] text-[#0F8A5F] flex items-center justify-center shrink-0">
+                <Icon name="bank" size={16} strokeWidth={2.4} />
+              </div>
+              <div className="text-[12px]">
+                <span className="font-bold text-[#0B3D2E] block leading-tight">
+                  {partnerBank?.bankName || 'Access Bank (CBN Licensed)'}
+                </span>
+                <span className="text-[#0F8A5F] font-semibold">
+                  {partnerBank?.isVerified
+                    ? t('accountVerified')
+                    : language === 'ha' ? 'Haɗa asusun banki' : 'Link partner account'}
+                </span>
+              </div>
+            </div>
+            <Icon name="chevron-right" size={16} className="text-[#8A968F]" />
+          </div>
+
+          {/* Reminder banner: shows remaining balance if partially paid, full if not paid */}
           {!isFullyPaid && (
             <div className="p-3.5 rounded-[14px] bg-[#FFF4DB] border border-[#F2B33D]/30 flex items-center justify-between gap-2.5 animate-in fade-in duration-200">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -78,25 +112,32 @@ export const M04Home: React.FC = () => {
             </div>
           )}
 
-          {/* Pot Card (Ink background, radius 16, 20px padding) -> tap opens M-06 */}
+          {/* Pot Card -> tap opens group ledger */}
           <div
-            onClick={() => navigate('/groups/g-kasuwa-atamfa/ledger')}
+            onClick={() => navigate(`/groups/${activeGroup?.id || 'g-kasuwa-atamfa'}/ledger`)}
             className="bg-[#0B3D2E] rounded-[16px] p-5 text-white shadow-md cursor-pointer hover:brightness-105 transition-all"
           >
-            <p className="text-[11px] font-semibold tracking-wider text-[#2FBF85] uppercase mb-1.5">
-              {t('cycle4Header')}
-            </p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[11px] font-semibold tracking-wider text-[#2FBF85] uppercase">
+                {activeGroup?.name || 'KASUWA ATAMFA ADASHE'} · {language === 'ha' ? 'ZANGO' : 'CYCLE'} 4 {language === 'ha' ? 'CIKIN' : 'OF'} {groupSize}
+              </p>
+              {activeGroup?.code && (
+                <span className="text-[10px] font-mono font-bold bg-[#072A20] px-2 py-0.5 rounded text-[#2FBF85] border border-[#2FBF85]/30">
+                  {activeGroup.code}
+                </span>
+              )}
+            </div>
 
             <div className="flex items-baseline gap-2 mb-3">
               <span className="font-heading font-extrabold text-[32px] text-white tracking-tight">
                 {formatNaira(potTotal)}
               </span>
               <span className="text-[15px] font-semibold text-[#2FBF85]">
-                {t('ofAmount')}
+                {language === 'ha' ? `na ${formatNaira(targetPot)}` : `of ${formatNaira(targetPot)}`}
               </span>
             </div>
 
-            {/* 8 px progress bar */}
+            {/* Progress bar */}
             <div className="w-full h-2 rounded-full bg-[#072A20] overflow-hidden mb-3">
               <div
                 style={{ width: `${progressPercent}%` }}
@@ -158,9 +199,9 @@ export const M04Home: React.FC = () => {
               </div>
             </div>
 
-            {/* Your Turn to Collect Tile (accentSoft fill) */}
+            {/* Your Turn to Collect Tile */}
             <div
-              onClick={() => navigate('/groups/g-kasuwa-atamfa/calendar')}
+              onClick={() => navigate(`/groups/${activeGroup?.id || 'g-kasuwa-atamfa'}/calendar`)}
               className="bg-[#FFF4DB] rounded-[16px] p-3.5 border border-[#F2B33D]/30 shadow-sm flex flex-col justify-between cursor-pointer hover:border-[#F2B33D] transition-colors"
             >
               <div>
@@ -168,7 +209,7 @@ export const M04Home: React.FC = () => {
                   {t('yourTurnToCollect')}
                 </span>
                 <span className="font-heading font-extrabold text-[20px] text-[#0B3D2E] block mt-0.5">
-                  ₦200,000
+                  {formatNaira(targetPot)}
                 </span>
               </div>
               <div className="mt-3 flex flex-col gap-1.5 items-start">
@@ -196,11 +237,11 @@ export const M04Home: React.FC = () => {
             </div>
 
             <div className="divide-y divide-[#EFEAE0]">
-              {/* If user recently contributed (either full or installment) */}
+              {/* If user recently contributed */}
               {userPaidAmount > 0 && (
                 <div className="py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Avatar initials="HI" color="clay" size={36} />
+                    <Avatar initials={currentUser.initials} color={currentUser.avatarColor} size={36} />
                     <div>
                       <span className="text-[13px] font-semibold text-[#0B3D2E] block leading-tight">
                         {t('youPaid')} {formatNaira(userPaidAmount)}
@@ -214,7 +255,7 @@ export const M04Home: React.FC = () => {
                 </div>
               )}
 
-              {/* Row 1: Rukayya Adamu */}
+              {/* Activity rows */}
               <div className="py-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar initials="RA" color="blue" size={36} />
@@ -230,7 +271,6 @@ export const M04Home: React.FC = () => {
                 <MoneyStateBadge state="confirming" />
               </div>
 
-              {/* Row 2: Maryam Sani */}
               <div className="py-2.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar initials="MS" color="green" size={36} />
@@ -250,7 +290,7 @@ export const M04Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom 5-Tab Bar */}
+      {/* Bottom Bar */}
       <BottomTabBar
         activeTab="home"
         onTabChange={(tab) => {

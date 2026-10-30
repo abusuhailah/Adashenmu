@@ -2,7 +2,8 @@ import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DeviceFrame } from './components/common/DeviceFrame';
-import { DemoModal } from './components/common/DemoModal';
+import { PartnerBankModal } from './components/common/PartnerBankModal';
+import { JoinGroupModal } from './components/common/JoinGroupModal';
 import { Icon } from './components/common/Icon';
 
 // Screens
@@ -29,12 +30,12 @@ import { M18Profile } from './screens/M18Profile';
 const AppContent: React.FC = () => {
   const {
     currentRoute,
-    navigate,
     toasts,
     removeToast,
-    isDemoModalOpen,
-    setDemoModalOpen,
-    resetAllData,
+    isPartnerBankModalOpen,
+    setPartnerBankModalOpen,
+    isJoinModalOpen,
+    setJoinModalOpen,
   } = useApp();
   const { language, setLanguage } = useLanguage();
 
@@ -46,24 +47,17 @@ const AppContent: React.FC = () => {
         return <M02PhoneAndOtp />;
       case '/verify':
         return <M03VerifyIdentity />;
-      case '/join/kasuwa-stall-weekly':
-        return <W01InviteWebPage />;
       case '/home':
         return <M04Home />;
       case '/groups':
         return <M05MyGroups />;
-      case '/groups/g-kasuwa-atamfa/ledger':
-      case '/groups/g-kasuwa-atamfa/rules':
-      case '/groups/g-kasuwa-atamfa':
-        return <M06GroupLedger />;
-      case '/groups/g-kasuwa-atamfa/calendar':
-        return <M07PayoutCalendar />;
       case '/groups/new/rules':
         return <M08CreateGroupRules />;
       case '/groups/new/order':
         return <M09CreateGroupPayoutOrder />;
       case '/groups/new/review':
         return <M10CreateGroupReview />;
+      case '/groups/invite':
       case '/groups/g-kasuwa-stall-weekly/invite':
         return <M11InviteMembers />;
       case '/pay':
@@ -81,18 +75,17 @@ const AppContent: React.FC = () => {
       case '/profile':
         return <M18Profile />;
       default:
-        // Handle parameterized or unknown routes
-        if (currentRoute.startsWith('/join/')) {
+        if (currentRoute.startsWith('/join')) {
           return <W01InviteWebPage />;
-        }
-        if (currentRoute.includes('/ledger')) {
-          return <M06GroupLedger />;
         }
         if (currentRoute.includes('/calendar')) {
           return <M07PayoutCalendar />;
         }
-        if (currentRoute.includes('/invite')) {
-          return <M11InviteMembers />;
+        if (currentRoute.includes('/rules')) {
+          return <M06GroupLedger />;
+        }
+        if (currentRoute.includes('/ledger') || currentRoute.startsWith('/groups/')) {
+          return <M06GroupLedger />;
         }
         return <M04Home />;
     }
@@ -102,26 +95,18 @@ const AppContent: React.FC = () => {
     <DeviceFrame>
       {renderScreen()}
 
-      {/* Floating Demo Launcher & Language Switcher on mobile if not in desktop header */}
-      <div className="md:hidden fixed bottom-28 right-4 flex flex-col gap-2 z-40">
+      {/* Floating Language Switcher on mobile */}
+      <div className="md:hidden fixed bottom-24 right-4 z-40">
         <button
           type="button"
           onClick={() => {
-            const nextLang = language === 'en' ? 'ha' : language === 'ha' ? 'ar' : 'en';
+            const nextLang = language === 'en' ? 'ha' : 'en';
             setLanguage(nextLang);
           }}
           title="Switch Language"
-          className="w-11 h-11 rounded-full bg-white text-[#0B3D2E] shadow-lg flex items-center justify-center border border-[#E3DDCF] active:scale-95 text-[12px] font-bold"
+          className="w-10 h-10 rounded-full bg-white text-[#0B3D2E] shadow-md flex items-center justify-center border border-[#E3DDCF] active:scale-95 text-[12px] font-bold"
         >
-          {language.toUpperCase()}
-        </button>
-        <button
-          type="button"
-          onClick={() => setDemoModalOpen(true)}
-          title="Prototype Navigator"
-          className="w-11 h-11 rounded-full bg-[#0B3D2E] text-white shadow-lg flex items-center justify-center border border-white/20 active:scale-95"
-        >
-          <Icon name="list" size={20} />
+          {language === 'ha' ? 'HA' : 'EN'}
         </button>
       </div>
 
@@ -153,12 +138,15 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Prototype Navigator Modal */}
-      <DemoModal
-        isOpen={isDemoModalOpen}
-        onClose={() => setDemoModalOpen(false)}
-        onNavigate={navigate}
-        onResetData={resetAllData}
+      {/* Modals for live testing */}
+      <PartnerBankModal
+        isOpen={isPartnerBankModalOpen}
+        onClose={() => setPartnerBankModalOpen(false)}
+      />
+
+      <JoinGroupModal
+        isOpen={isJoinModalOpen}
+        onClose={() => setJoinModalOpen(false)}
       />
     </DeviceFrame>
   );

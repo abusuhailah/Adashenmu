@@ -87,17 +87,6 @@ export const M01Welcome: React.FC = () => {
           >
             Hausa
           </button>
-          <button
-            type="button"
-            onClick={() => setLanguage('ar')}
-            className={`px-3 py-1 rounded-full text-[12px] font-semibold transition-all cursor-pointer ${
-              language === 'ar'
-                ? 'bg-[#2FBF85] text-[#0B3D2E]'
-                : 'border border-[#2FBF85]/40 text-[#2FBF85] hover:bg-[#072A20]'
-            }`}
-          >
-            العربية
-          </button>
         </div>
       </div>
 

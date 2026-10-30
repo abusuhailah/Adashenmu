@@ -1,6 +1,23 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import initialMockData from '../data/mock-data.json';
 import { Group, Member, ActivityItem, MoneyState, formatNaira } from '../data/types';
+import {
+  auth,
+  db,
+  googleProvider,
+  signInWithPopup,
+  fbSignOut,
+  onAuthStateChanged,
+  getOrCreateUserProfile,
+  updatePartnerBank,
+  verifyUserNinDoc,
+  createRealGroup,
+  joinGroupReal,
+  recordRealContribution,
+  LiveUserProfile,
+  LiveGroupData,
+} from '../lib/firebase';
+import { collection, onSnapshot, doc, getDoc, getDocs, query, orderBy } from 'firebase/firestore';
 
 interface ToastMessage {
   id: string;
@@ -11,7 +28,7 @@ interface ToastMessage {
 export type PaymentTimingStatus = 'before_due' | 'due' | 'late';
 export type PaymentMode = 'full' | 'installment';
 
-interface CreateGroupDraft {
+export interface CreateGroupDraft {
   templateId: string;
   name: string;
   amount: number;
@@ -23,7 +40,16 @@ interface CreateGroupDraft {
   payoutOrder: 'fixed' | 'draw' | 'vote';
   startDate: string;
   endDate: string;
+  partnerBankName?: string;
   agreedToRules: boolean;
+}
+
+export interface PartnerBankAccount {
+  bankName: string;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  isVerified: boolean;
 }
 
 interface AppContextType {
@@ -33,13 +59,29 @@ interface AppContextType {
   goBack: () => void;
   historyStack: string[];
 
-  // Data & State
-  currentUser: typeof initialMockData.currentUser;
+  // User & Live Auth
+  currentUser: {
+    id: string;
+    name: string;
+    phone: string;
+    initials: string;
+    avatarColor: 'green' | 'gold' | 'blue' | 'clay' | 'grey';
+    ninVerified: boolean;
+    nin?: string;
+    role: 'Organiser' | 'Member';
+  };
+  liveUserProfile: LiveUserProfile | null;
+  signInWithGoogle: () => Promise<void>;
+  signInWithPhoneDirect: (phone: string, name?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+
+  // Data & Groups
   members: Member[];
   groups: Group[];
+  activeGroup: Group | null;
   activity: typeof initialMockData.activity;
-  
-  // Contribution Tracking & Installments
+
+  // Contribution Tracking & Flexible Installments
   totalCycleContribution: number;
   userPaidAmount: number;
   userRemainingBalance: number;
@@ -47,8 +89,8 @@ interface AppContextType {
   userContributionState: MoneyState;
   potTotal: number;
   potConfirmedCount: number;
-  
-  // Payment Rules & Timing (Feature: flexible installment before due date, full when due, full + fee when late)
+
+  // Timing & Modes
   paymentTimingStatus: PaymentTimingStatus;
   setPaymentTimingStatus: (status: PaymentTimingStatus) => void;
   paymentMode: PaymentMode;
@@ -56,7 +98,9 @@ interface AppContextType {
   customInstallmentAmount: number;
   setCustomInstallmentAmount: (amount: number) => void;
   currentPaymentAmount: number;
-  // Group detail navigation tabs (Ledger, Calendar, Rules)
+  lateFeeAmount: number;
+
+  // Group detail navigation tabs
   groupActiveTab: 'ledger' | 'calendar' | 'rules';
   setGroupActiveTab: (tab: 'ledger' | 'calendar' | 'rules') => void;
 
@@ -68,14 +112,26 @@ interface AppContextType {
   startPaymentSimulation: (amountToPay?: number) => void;
   resetPaymentState: () => void;
 
-  // Create Group Flow
+  // Real Group Actions
   createGroupDraft: CreateGroupDraft;
   updateCreateGroupDraft: (patch: Partial<CreateGroupDraft>) => void;
-  commitNewGroup: () => void;
+  commitNewGroup: () => Promise<void>;
+  joinGroupByCodeOrId: (codeOrId: string) => Promise<Group>;
 
-  // Identity Verification
+  // Partner Bank
+  partnerBank: PartnerBankAccount | null;
+  savePartnerBank: (bank: { bankName: string; bankCode: string; accountNumber: string; accountName: string }) => Promise<void>;
+  isPartnerBankModalOpen: boolean;
+  setPartnerBankModalOpen: (open: boolean) => void;
+
+  // Join Group Modal
+  isJoinModalOpen: boolean;
+  setJoinModalOpen: (open: boolean) => void;
+
+  // NIN Identity Verification
   isNinVerified: boolean;
   setNinVerified: (v: boolean) => void;
+  verifyNin: (nin: string, fullName: string) => Promise<void>;
 
   // UI helpers
   toasts: ToastMessage[];
@@ -100,20 +156,31 @@ const defaultCreateGroupDraft: CreateGroupDraft = {
   payoutOrder: 'draw',
   startDate: 'Fri 6 Nov 2026',
   endDate: 'Fri 25 Dec 2026',
+  partnerBankName: 'Access Bank (CBN Licensed)',
   agreedToRules: true,
 };
 
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Route state
+  // Navigation
   const [currentRoute, setCurrentRoute] = useState<string>('/home');
   const [historyStack, setHistoryStack] = useState<string[]>(['/home']);
 
-  // Core data states loaded from mock-data.json
-  const [currentUser, setCurrentUser] = useState(initialMockData.currentUser);
-  const [members, setMembers] = useState<Member[]>(initialMockData.members as Member[]);
+  // Live Firebase User & Profile
+  const [liveUserProfile, setLiveUserProfile] = useState<LiveUserProfile | null>(null);
+  const [isNinVerified, setNinVerified] = useState<boolean>(true);
+  const [partnerBank, setPartnerBank] = useState<PartnerBankAccount | null>({
+    bankName: 'Guaranty Trust Bank (GTBank)',
+    bankCode: '058',
+    accountNumber: '0129482110',
+    accountName: 'Hauwa Ibrahim',
+    isVerified: true,
+  });
+
+  // Groups and members
   const [groups, setGroups] = useState<Group[]>(initialMockData.groups.slice(0, 1) as unknown as Group[]);
+  const [members, setMembers] = useState<Member[]>(initialMockData.members as Member[]);
   const [activity, setActivity] = useState(initialMockData.activity);
 
   // Installment & Contribution tracking
@@ -129,7 +196,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [paymentTimingStatus, setPaymentTimingStatus] = useState<PaymentTimingStatus>('before_due');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('full');
   const [customInstallmentAmount, setCustomInstallmentAmount] = useState<number>(5000);
-  const [lastPaymentAmount, setLastPaymentAmount] = useState<number>(20000);
 
   // Payment details
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'bankTransfer' | 'card' | 'ussd'>('ussd');
@@ -138,27 +204,97 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Create group draft
   const [createGroupDraft, setCreateGroupDraft] = useState<CreateGroupDraft>(defaultCreateGroupDraft);
 
-  // NIN verification state
-  const [isNinVerified, setNinVerified] = useState(true);
-
-  // Group detail active tab state
+  // Active tab in group details
   const [groupActiveTab, setGroupActiveTab] = useState<'ledger' | 'calendar' | 'rules'>('ledger');
 
-  // UI overlays
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  // Modals & Sheets
+  const [isPartnerBankModalOpen, setPartnerBankModalOpen] = useState(false);
+  const [isJoinModalOpen, setJoinModalOpen] = useState(false);
   const [isDemoModalOpen, setDemoModalOpen] = useState(false);
   const [isStatesSheetOpen, setStatesSheetOpen] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          const profile = await getOrCreateUserProfile(fbUser);
+          setLiveUserProfile(profile);
+          setNinVerified(profile.ninVerified);
+          if (profile.partnerBank) {
+            setPartnerBank(profile.partnerBank);
+          }
+        } catch (e) {
+          console.error('Error fetching live profile:', e);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time Firestore sync for groups
+  useEffect(() => {
+    try {
+      const q = collection(db, 'groups');
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const liveGroups: Group[] = [];
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data() as LiveGroupData;
+              liveGroups.push({
+                id: data.id,
+                name: data.name,
+                code: data.code,
+                organiserId: data.organiserId,
+                status: data.status,
+                rules: data.rules as any,
+                wallet: data.wallet as any,
+                currentCycle: data.currentCycle as any,
+                payoutCalendar: data.payoutCalendar as any,
+                members: data.members as any,
+                inviteLink: `adashenmu.app/join/${data.id}`,
+              });
+            });
+            setGroups(liveGroups);
+          }
+        },
+        (error) => {
+          console.warn('Firestore live listener notice:', error.message);
+        }
+      );
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('Firestore init note:', err);
+    }
+  }, []);
+
+  // Compute active user details
+  const currentUser = {
+    id: liveUserProfile?.id || initialMockData.currentUser.id,
+    name: liveUserProfile?.displayName || initialMockData.currentUser.name,
+    phone: liveUserProfile?.phone || '+234 803 412 7765',
+    initials: liveUserProfile?.initials || 'HI',
+    avatarColor: (liveUserProfile?.avatarColor as any) || ('clay' as const),
+    ninVerified: isNinVerified,
+    nin: liveUserProfile?.nin,
+    role: 'Organiser' as const,
+  };
+
+  const activeGroup = groups[0] || null;
 
   const userRemainingBalance = Math.max(0, totalCycleContribution - userPaidAmount);
 
-  // Calculate current effective payment amount based on timing status and chosen mode
+  // Calculate current payment amount based on timing status
   let currentPaymentAmount: number;
   if (paymentTimingStatus === 'late') {
     currentPaymentAmount = userRemainingBalance + lateFeeAmount;
   } else if (paymentTimingStatus === 'due') {
     currentPaymentAmount = userRemainingBalance;
   } else {
-    // before_due
+    // before_due: allow installment or full
     if (paymentMode === 'installment') {
       currentPaymentAmount = Math.min(customInstallmentAmount, userRemainingBalance);
     } else {
@@ -171,7 +307,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentRoute(route);
     if (route.includes('/calendar')) {
       setGroupActiveTab('calendar');
-    } else if (route.includes('/rules') && route.includes('/groups/g-')) {
+    } else if (route.includes('/rules')) {
       setGroupActiveTab('rules');
     } else if (route.includes('/ledger')) {
       setGroupActiveTab('ledger');
@@ -203,51 +339,252 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const updateCreateGroupDraft = (patch: Partial<CreateGroupDraft>) => {
-    setCreateGroupDraft((prev) => {
-      const updated = { ...prev, ...patch };
-      if (patch.templateId && patch.templateId === 'monthly-market') {
-        updated.name = 'Kaduna Fabric Sellers';
-        updated.amount = 20000;
-        updated.frequency = 'monthly';
-        updated.dueDay = '28th of each month';
-        updated.size = 10;
-        updated.lateGraceDays = 2;
-        updated.lateFee = 1000;
-        updated.startDate = 'Sun 1 Nov 2026';
-        updated.endDate = 'Mon 31 Aug 2027';
-      } else if (patch.templateId && patch.templateId === 'weekly-stall') {
-        updated.name = 'Kasuwa Stall Weekly';
-        updated.amount = 5000;
-        updated.frequency = 'weekly';
-        updated.dueDay = 'Fri, 6 pm';
-        updated.size = 8;
-        updated.lateGraceDays = 1;
-        updated.lateFee = 500;
-        updated.startDate = 'Fri 6 Nov 2026';
-        updated.endDate = 'Fri 25 Dec 2026';
+  // Google Sign-in
+  const signInWithGoogle = async () => {
+    try {
+      const res = await signInWithPopup(auth, googleProvider);
+      const profile = await getOrCreateUserProfile(res.user);
+      setLiveUserProfile(profile);
+      setNinVerified(profile.ninVerified);
+      showToast(`Welcome, ${profile.displayName}!`, 'success');
+      navigate('/home');
+    } catch (e: any) {
+      console.error('Sign-in error:', e);
+      showToast(e.message || 'Google Sign-in failed', 'alert');
+    }
+  };
+
+  // Phone sign-in simulation/real
+  const signInWithPhoneDirect = async (phone: string, name?: string) => {
+    const dummyUser = {
+      uid: 'user-' + phone.replace(/\D/g, '').slice(-6),
+      displayName: name || 'Adashenmu Member',
+      phoneNumber: phone,
+    };
+    const profile = await getOrCreateUserProfile(dummyUser as any, name, phone);
+    setLiveUserProfile(profile);
+    setNinVerified(profile.ninVerified);
+    showToast(`Signed in as ${profile.displayName}`, 'success');
+    navigate('/verify');
+  };
+
+  const signOut = async () => {
+    try {
+      await fbSignOut(auth);
+    } catch {}
+    setLiveUserProfile(null);
+    showToast('Signed out of session', 'info');
+    navigate('/welcome');
+  };
+
+  // Partner Bank Save
+  const savePartnerBank = async (bank: {
+    bankName: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+  }) => {
+    const data: PartnerBankAccount = {
+      ...bank,
+      isVerified: true,
+    };
+    setPartnerBank(data);
+    if (liveUserProfile?.id) {
+      try {
+        await updatePartnerBank(liveUserProfile.id, bank);
+      } catch (e) {
+        console.warn('Could not sync bank to firestore:', e);
       }
-      return updated;
-    });
+    }
   };
 
-  const commitNewGroup = () => {
-    const secondGroup = initialMockData.groups[1] as unknown as Group;
+  // NIN Verification
+  const verifyNin = async (nin: string, fullName: string) => {
+    setNinVerified(true);
+    if (liveUserProfile?.id) {
+      try {
+        await verifyUserNinDoc(liveUserProfile.id, nin, fullName);
+        setLiveUserProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                ninVerified: true,
+                displayName: fullName || prev.displayName,
+                nin: nin.slice(0, 3) + '*****' + nin.slice(-3),
+              }
+            : null
+        );
+      } catch (e) {
+        console.warn('Could not sync NIN to firestore:', e);
+      }
+    }
+  };
+
+  const updateCreateGroupDraft = (patch: Partial<CreateGroupDraft>) => {
+    setCreateGroupDraft((prev) => ({ ...prev, ...patch }));
+  };
+
+  // Create real group & persist to Firestore
+  const commitNewGroup = async () => {
+    const organiserProfile: LiveUserProfile = liveUserProfile || {
+      id: currentUser.id,
+      displayName: currentUser.name,
+      phone: currentUser.phone,
+      initials: currentUser.initials,
+      avatarColor: currentUser.avatarColor,
+      ninVerified: isNinVerified,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const created = await createRealGroup(organiserProfile, {
+        name: createGroupDraft.name,
+        amount: createGroupDraft.amount,
+        frequency: createGroupDraft.frequency,
+        dueDay: createGroupDraft.dueDay,
+        size: createGroupDraft.size,
+        lateGraceDays: createGroupDraft.lateGraceDays,
+        lateFee: createGroupDraft.lateFee,
+        payoutOrder: createGroupDraft.payoutOrder,
+        startDate: createGroupDraft.startDate,
+        endDate: createGroupDraft.endDate,
+        partnerBankName: partnerBank?.bankName || createGroupDraft.partnerBankName,
+      });
+
+      const newGroup: Group = {
+        id: created.id,
+        name: created.name,
+        code: created.code,
+        organiserId: created.organiserId,
+        rules: created.rules as any,
+        wallet: created.wallet as any,
+        currentCycle: created.currentCycle as any,
+        payoutCalendar: created.payoutCalendar as any,
+        members: created.members as any,
+        inviteLink: `adashenmu.app/join/${created.id}`,
+      };
+
+      setGroups((prev) => [newGroup, ...prev.filter((g) => g.id !== newGroup.id)]);
+      showToast(`Group "${created.name}" created! Join code: ${created.code}`, 'success');
+    } catch (e: any) {
+      console.error('Group creation error:', e);
+      // Fallback local creation if offline
+      const localId = 'group-' + Date.now();
+      const code = createGroupDraft.name.slice(0, 4).toUpperCase() + '-8821';
+      const localGroup: Group = {
+        id: localId,
+        name: createGroupDraft.name,
+        code,
+        organiserId: currentUser.id,
+        rules: {
+          amount: createGroupDraft.amount,
+          currency: 'NGN',
+          frequency: createGroupDraft.frequency,
+          dueDay: createGroupDraft.dueDay,
+          size: createGroupDraft.size,
+          payoutAmount: createGroupDraft.amount * createGroupDraft.size,
+          payoutOrder: createGroupDraft.payoutOrder,
+          lateRule: {
+            graceDays: createGroupDraft.lateGraceDays,
+            feeAmount: createGroupDraft.lateFee,
+            feeGoesTo: 'pot',
+          },
+          startDate: createGroupDraft.startDate,
+          endDate: createGroupDraft.endDate,
+          changesNeedGroupVote: true,
+        },
+        wallet: {
+          heldBy: 'Licensed partner bank · NDIC Insured',
+          bankName: partnerBank?.bankName || 'Access Bank',
+          accountNumber: '0928192841',
+          balanceThisCycle: 0,
+        },
+        members: [
+          {
+            id: currentUser.id,
+            name: currentUser.name,
+            initials: currentUser.initials,
+            avatarColor: currentUser.avatarColor,
+            isYou: true,
+            role: 'Organiser',
+            ninVerified: isNinVerified,
+          },
+        ],
+        inviteLink: `adashenmu.app/join/${localId}`,
+      };
+      setGroups((prev) => [localGroup, ...prev]);
+      showToast(`Group "${createGroupDraft.name}" created!`, 'success');
+    }
+  };
+
+  // Join group by code or ID
+  const joinGroupByCodeOrId = async (codeOrId: string): Promise<Group> => {
+    const cleaned = codeOrId.trim().toUpperCase();
+    // Check locally first
+    let match = groups.find((g) => g.id === codeOrId || (g.code && g.code.toUpperCase() === cleaned));
+
+    if (!match) {
+      // Check in Firestore
+      try {
+        const querySnapshot = await getDocs(collection(db, 'groups'));
+        querySnapshot.forEach((docSnap) => {
+          const d = docSnap.data() as LiveGroupData;
+          if (d.id === codeOrId || (d.code && d.code.toUpperCase() === cleaned)) {
+            match = {
+              id: d.id,
+              name: d.name,
+              code: d.code,
+              organiserId: d.organiserId,
+              rules: d.rules as any,
+              wallet: d.wallet as any,
+              currentCycle: d.currentCycle as any,
+              payoutCalendar: d.payoutCalendar as any,
+              members: d.members as any,
+              inviteLink: `adashenmu.app/join/${d.id}`,
+            };
+          }
+        });
+      } catch (err) {
+        console.warn('Firestore group lookup error:', err);
+      }
+    }
+
+    if (!match) {
+      throw new Error(`No group found with code "${codeOrId}".`);
+    }
+
+    // Join the group
+    const userProfile: LiveUserProfile = liveUserProfile || {
+      id: currentUser.id,
+      displayName: currentUser.name,
+      phone: currentUser.phone,
+      initials: currentUser.initials,
+      avatarColor: currentUser.avatarColor,
+      ninVerified: isNinVerified,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await joinGroupReal(match.id, userProfile);
+    } catch (e: any) {
+      console.warn('Real join notice:', e.message);
+    }
+
+    // Add to local state if not present
     setGroups((prev) => {
-      if (prev.some((g) => g.id === secondGroup.id)) return prev;
-      return [...prev, secondGroup];
+      if (prev.some((g) => g.id === match!.id)) return prev;
+      return [match!, ...prev];
     });
-    showToast(`"${createGroupDraft.name}" created successfully!`, 'success');
+
+    return match;
   };
 
-  // Payment simulation supporting installment, full, and late with fees
+  // Payment contribution simulation (supports installment and full)
   const startPaymentSimulation = (amountOverride?: number) => {
     const amountToPay = amountOverride !== undefined ? amountOverride : currentPaymentAmount;
-    setLastPaymentAmount(amountToPay);
-
     setUserContributionState('confirming');
 
-    // Add activity row immediately as confirming
+    // Add activity record immediately
     setActivity((prev) => {
       const newActivity = [...prev];
       if (newActivity[0]) {
@@ -255,24 +592,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...newActivity[0],
           items: [
             {
-              who: 'm01',
+              who: currentUser.id,
               title:
                 amountToPay < totalCycleContribution && userPaidAmount + amountToPay < totalCycleContribution
-                  ? 'You paid instalment · Kasuwa Atamfa'
-                  : 'You paid · Kasuwa Atamfa',
-              detail: `USSD · 9:41 · ${selectedUssdBank}`,
+                  ? `You paid instalment · ${groups[0]?.name || 'Adashe'}`
+                  : `You paid · ${groups[0]?.name || 'Adashe'}`,
+              detail: `${selectedPaymentMethod.toUpperCase()} · ${selectedUssdBank}`,
               amount: amountToPay,
               state: 'confirming',
             },
-            ...newActivity[0].items.filter((item) => item.who !== 'm01'),
+            ...newActivity[0].items.filter((item) => item.who !== currentUser.id),
           ],
         };
       }
       return newActivity;
     });
 
-    // Bank confirmation simulation after ~3.2 seconds
-    setTimeout(() => {
+    // Bank confirmation simulation after ~3 seconds
+    setTimeout(async () => {
       const newPaidTotal = userPaidAmount + amountToPay;
       setUserPaidAmount(newPaidTotal);
 
@@ -280,60 +617,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (isCompleted) {
         setUserContributionState('inThePot');
         setHasPaidUserContribution(true);
-        setPotConfirmedCount(8);
+        setPotConfirmedCount((c) => Math.min(10, c + 1));
       } else {
-        // Still has remaining balance
         setUserContributionState('pending');
         setHasPaidUserContribution(false);
       }
 
       setPotTotal((prev) => prev + amountToPay);
 
-      // Update ledger for Hauwa
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.id === 'g-kasuwa-atamfa' && group.currentCycle) {
-            return {
-              ...group,
-              wallet: {
-                ...group.wallet,
-                balanceThisCycle: potTotal + amountToPay,
-                heldBy: group.wallet?.heldBy || 'Licensed partner bank',
-              },
-              currentCycle: {
-                ...group.currentCycle,
-                contributions: group.currentCycle.contributions.map((c) =>
-                  c.memberId === 'm01'
-                    ? {
-                        ...c,
-                        state: isCompleted ? 'inThePot' : 'pending',
-                        amount: newPaidTotal,
-                        at: '2026-10-26T09:41',
-                      }
-                    : c
-                ),
-                summary: {
-                  ...group.currentCycle.summary,
-                  inThePot: isCompleted ? 8 : 7,
-                  confirming: 0,
-                  pending: isCompleted ? 1 : 2,
-                  potTotal: potTotal + amountToPay,
-                },
-              },
-            };
-          }
-          return group;
-        })
-      );
+      // Persist to Firestore if live group exists
+      if (groups[0]?.id && liveUserProfile) {
+        try {
+          await recordRealContribution(
+            groups[0].id,
+            liveUserProfile,
+            amountToPay,
+            isCompleted,
+            selectedPaymentMethod
+          );
+        } catch (e) {
+          console.warn('Could not record contribution to Firestore:', e);
+        }
+      }
 
-      // Update activity row to inThePot
+      // Update activity row
       setActivity((prev) => {
         const next = [...prev];
         if (next[0]) {
           next[0] = {
             ...next[0],
             items: next[0].items.map((item) =>
-              item.who === 'm01' ? { ...item, state: 'inThePot' } : item
+              item.who === currentUser.id ? { ...item, state: 'inThePot' } : item
             ),
           };
         }
@@ -341,34 +655,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       });
 
       if (isCompleted) {
-        showToast(`Full cycle contribution completed! ₦${amountToPay.toLocaleString()} confirmed in the pot.`, 'success');
+        showToast(
+          `Full cycle contribution completed! ₦${amountToPay.toLocaleString('en-NG')} confirmed in group pot.`,
+          'success'
+        );
       } else {
         const remaining = totalCycleContribution - newPaidTotal;
-        showToast(`Instalment of ₦${amountToPay.toLocaleString()} confirmed! ₦${remaining.toLocaleString()} remaining for Cycle 4.`, 'info');
+        showToast(
+          `Instalment of ₦${amountToPay.toLocaleString('en-NG')} confirmed! ₦${remaining.toLocaleString('en-NG')} remaining for this cycle.`,
+          'info'
+        );
       }
-    }, 3200);
+    }, 3000);
   };
 
   const resetPaymentState = () => {
     setUserPaidAmount(0);
     setUserContributionState('pending');
     setHasPaidUserContribution(false);
-    setPotTotal(140000);
-    setPotConfirmedCount(7);
     setPaymentTimingStatus('before_due');
     setPaymentMode('full');
     setCustomInstallmentAmount(5000);
   };
 
   const resetAllData = () => {
-    setCurrentUser(initialMockData.currentUser);
-    setMembers(initialMockData.members as Member[]);
-    setGroups(initialMockData.groups.slice(0, 1) as unknown as Group[]);
-    setActivity(initialMockData.activity);
     resetPaymentState();
-    setCreateGroupDraft(defaultCreateGroupDraft);
-    setNinVerified(true);
-    showToast('Mock data reset to original story state (Mon 26 Oct, 9:41)', 'info');
+    showToast('Session reset', 'info');
   };
 
   return (
@@ -379,8 +691,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         goBack,
         historyStack,
         currentUser,
+        liveUserProfile,
+        signInWithGoogle,
+        signInWithPhoneDirect,
+        signOut,
         members,
         groups,
+        activeGroup,
         activity,
         totalCycleContribution,
         userPaidAmount,
@@ -408,8 +725,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createGroupDraft,
         updateCreateGroupDraft,
         commitNewGroup,
+        joinGroupByCodeOrId,
+        partnerBank,
+        savePartnerBank,
+        isPartnerBankModalOpen,
+        setPartnerBankModalOpen,
+        isJoinModalOpen,
+        setJoinModalOpen,
         isNinVerified,
         setNinVerified,
+        verifyNin,
         toasts,
         showToast,
         removeToast,

@@ -16,13 +16,11 @@ export const M15LatePaymentReminder: React.FC = () => {
 
   const cycleNextLanguage = () => {
     if (language === 'en') setLanguage('ha');
-    else if (language === 'ha') setLanguage('ar');
     else setLanguage('en');
   };
 
   const getLanguagePrompt = () => {
     if (language === 'en') return t('readInHausa');
-    if (language === 'ha') return t('readInArabic');
     return t('readInEnglish');
   };
 

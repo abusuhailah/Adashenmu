@@ -1,28 +1,53 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBar } from '../components/common/StatusBar';
 import { TopBar } from '../components/common/TopBar';
 import { Icon } from '../components/common/Icon';
+import { validateNin } from '../data/nigerianBanks';
 
 export const M03VerifyIdentity: React.FC = () => {
-  const { navigate, showToast, setNinVerified } = useApp();
-  const [nin, setNin] = useState('7031 4482 905');
+  const { navigate, showToast, verifyNin, currentUser } = useApp();
+  const { language, t } = useLanguage();
+  const [nin, setNin] = useState('70314482905');
+  const [legalName, setLegalName] = useState(currentUser.name || 'Hauwa Ibrahim Bello');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleVerify = () => {
+  const isValid = validateNin(nin);
+
+  const handleVerify = async () => {
+    if (!isValid) {
+      showToast(
+        language === 'ha'
+          ? 'Da fatan za a shigar da NIN mai lambobi 11'
+          : 'Please enter a valid 11-digit NIN',
+        'alert'
+      );
+      return;
+    }
+
     setIsVerifying(true);
-    setTimeout(() => {
+    try {
+      await verifyNin(nin, legalName);
+      showToast(
+        language === 'ha'
+          ? `An tabbatar da NIN da NIMC! Barka da zuwa, ${legalName}.`
+          : `NIN verified with NIMC! Welcome, ${legalName}.`,
+        'success'
+      );
       setIsVerifying(false);
-      setNinVerified(true);
-      showToast('NIN verified with NIMC! Welcome, Hauwa.', 'success');
       navigate('/home');
-    }, 1200);
+    } catch {
+      setIsVerifying(false);
+      showToast('NIN verification timed out. Please try again.', 'alert');
+    }
   };
 
   const handleSkip = () => {
-    setNinVerified(false);
     showToast(
-      "We'll remind you. You can view groups, but paying stays locked until your NIN is verified.",
+      language === 'ha'
+        ? 'Za mu tunatar da ku. Kuna iya duba ƙungiyoyi, amma biyan kuɗi yana buƙatar NIN.'
+        : "We'll remind you. You can view groups, but paying stays locked until your NIN is verified.",
       'info'
     );
     navigate('/home');
@@ -33,7 +58,7 @@ export const M03VerifyIdentity: React.FC = () => {
       <div>
         <StatusBar mode="light" />
         <TopBar
-          title="Verify identity"
+          title={t('verifyIdentity')}
           onBack={() => navigate('/sign-in')}
           showBack={true}
         />
@@ -46,7 +71,7 @@ export const M03VerifyIdentity: React.FC = () => {
             <div className="h-1 flex-1 rounded-full bg-[#E3DDCF]" />
           </div>
           <span className="text-[12px] font-medium text-[#4F5F57] whitespace-nowrap">
-            Step 2 of 3
+            {t('step2Of3')}
           </span>
         </div>
 
@@ -57,25 +82,46 @@ export const M03VerifyIdentity: React.FC = () => {
           </div>
 
           <h1 className="font-heading font-bold text-[24px] text-[#0B3D2E] leading-tight mb-2">
-            Confirm who you are
+            {t('confirmWhoYouAre')}
           </h1>
-          <p className="text-[15px] text-[#4F5F57] leading-relaxed mb-6">
-            Every member verifies once with their National Identification Number (NIN), so your group knows everyone is a real person.
+          <p className="text-[15px] text-[#4F5F57] leading-relaxed mb-5">
+            {t('ninDesc')}
           </p>
 
-          {/* NIN input field */}
-          <div className="mb-6">
-            <label className="block text-[14px] font-semibold text-[#0B3D2E] mb-2">
-              NIN (11 digits)
+          {/* Legal Full Name */}
+          <div className="mb-4">
+            <label className="block text-[13px] font-semibold text-[#0B3D2E] mb-1.5">
+              {language === 'ha' ? 'Cikakken Suna Kamar a NIN' : 'Full Legal Name (as on NIN)'}
             </label>
             <input
               type="text"
+              value={legalName}
+              onChange={(e) => setLegalName(e.target.value)}
+              className="w-full h-[50px] px-4 rounded-[12px] bg-white border border-[#E3DDCF] focus:border-[#0F8A5F] focus:outline-none text-[15px] font-medium text-[#0B3D2E]"
+            />
+          </div>
+
+          {/* NIN input field */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[13px] font-semibold text-[#0B3D2E]">
+                {t('ninLabel')}
+              </label>
+              <span className={`text-[11px] ${isValid ? 'text-[#0F8A5F] font-bold' : 'text-[#8A968F]'}`}>
+                {nin.replace(/\D/g, '').length}/11
+              </span>
+            </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={11}
               value={nin}
-              onChange={(e) => setNin(e.target.value)}
-              className="w-full h-[52px] px-4 rounded-[10px] bg-white border border-[#E3DDCF] focus:border-[#0F8A5F] focus:outline-none text-[16px] font-medium text-[#0B3D2E] font-mono tracking-wider"
+              onChange={(e) => setNin(e.target.value.replace(/\D/g, ''))}
+              placeholder="70314482905"
+              className="w-full h-[52px] px-4 rounded-[12px] bg-white border border-[#E3DDCF] focus:border-[#0F8A5F] focus:outline-none text-[17px] font-bold text-[#0B3D2E] font-mono tracking-widest"
             />
             <p className="text-[12px] text-[#4F5F57] mt-1.5 leading-normal">
-              Find it on your NIN slip or dial <span className="font-semibold text-[#0B3D2E]">*346#</span> from your phone. We only confirm your name and photo with NIMC.
+              {t('ninFindNote')}
             </p>
           </div>
 
@@ -85,7 +131,7 @@ export const M03VerifyIdentity: React.FC = () => {
               <Icon name="lock" size={20} strokeWidth={2.2} />
             </div>
             <p className="text-[13px] text-[#0B3D2E] leading-snug font-medium">
-              Your contributions are held by a licensed partner bank, not by any member. Adashenmu cannot spend them.
+              {t('bankAssuranceNin')}
             </p>
           </div>
         </div>
@@ -95,26 +141,23 @@ export const M03VerifyIdentity: React.FC = () => {
       <div className="p-5 pt-3 pb-8 bg-white border-t border-[#E3DDCF] space-y-3">
         <button
           type="button"
-          disabled={isVerifying}
+          disabled={isVerifying || !isValid}
           onClick={handleVerify}
-          className="w-full h-[52px] rounded-[14px] bg-[#0F8A5F] active:bg-[#0B6E4B] text-white font-heading font-bold text-[16px] flex items-center justify-center cursor-pointer shadow-sm hover:brightness-105 transition-all disabled:opacity-75"
+          className="w-full h-[52px] rounded-[14px] bg-[#0F8A5F] active:bg-[#0B6E4B] text-white font-heading font-bold text-[16px] flex items-center justify-center cursor-pointer shadow-sm hover:brightness-105 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isVerifying ? (
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Checking with NIMC…</span>
-            </div>
+            <span>{t('checkingNimc')}</span>
           ) : (
-            'Verify and continue'
+            <span>{t('verifyAndContinue')}</span>
           )}
         </button>
 
         <button
           type="button"
           onClick={handleSkip}
-          className="w-full text-center py-2 text-[14px] font-semibold text-[#0B6E4B] hover:underline cursor-pointer"
+          className="w-full py-2.5 text-center text-[14px] font-semibold text-[#4F5F57] hover:text-[#0B3D2E] cursor-pointer"
         >
-          I don't have my NIN with me
+          {t('dontHaveNin')}
         </button>
       </div>
     </div>

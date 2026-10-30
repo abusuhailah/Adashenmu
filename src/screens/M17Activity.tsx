@@ -99,7 +99,7 @@ export const M17Activity: React.FC = () => {
                         <span className="font-heading font-bold text-[14px] text-[#0B3D2E]">
                           {formatNaira(item.amount)}
                         </span>
-                        <MoneyStateBadge state={item.state} />
+                        <MoneyStateBadge state={item.state as any} />
                       </div>
                     </div>
                   ))}
