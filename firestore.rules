@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -9,26 +10,90 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+    function isGroupMember(groupId) {
+      return isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
     }
 
-    match /groups/{groupId} {
-      // Allow read to authenticated users and prospective members inspecting invite links
+    // 1. Users collection: public profiles
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+
+      // 2. Private subcollection: NIN, partnerBank details
+      match /private/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // 3. Invites collection: safe group preview info
+    match /invites/{code} {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.organiserId == request.auth.uid;
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.organiserId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.organiserId == request.auth.uid;
+    }
+
+    // 4. Groups collection
+    match /groups/{groupId} {
+      // Read only if current user is an active member of this group
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.memberIds;
+
+      // Create only if signed in, organiserId is self, and memberIds is [self]
+      allow create: if isAuthenticated() &&
+        request.resource.data.organiserId == request.auth.uid &&
+        request.resource.data.memberIds == [request.auth.uid];
+
+      // Delete only by the group organiser
       allow delete: if isAuthenticated() && resource.data.organiserId == request.auth.uid;
 
+      // Updates:
+      // (a) Organiser can update the group
+      // (b) Non-member can update ONLY to join:
+      //     - memberIds grows by exactly their own uid
+      //     - memberIds size does not exceed rules.size
+      //     - changes only members, memberIds, and payoutCalendar
+      // (c) Member recording a contribution can update ONLY wallet & currentCycle
+      allow update: if isAuthenticated() && (
+        // Case A: Organiser
+        resource.data.organiserId == request.auth.uid ||
+
+        // Case B: Non-member joining
+        (
+          !(request.auth.uid in resource.data.memberIds) &&
+          request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid]) &&
+          request.resource.data.memberIds.size() <= resource.data.rules.size &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds', 'payoutCalendar']) &&
+          request.resource.data.organiserId == resource.data.organiserId &&
+          request.resource.data.rules == resource.data.rules
+        ) ||
+
+        // Case C: Member updating contribution wallet balances
+        (
+          request.auth.uid in resource.data.memberIds &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['wallet', 'currentCycle']) &&
+          request.resource.data.memberIds == resource.data.memberIds &&
+          request.resource.data.organiserId == resource.data.organiserId &&
+          request.resource.data.rules == resource.data.rules
+        )
+      );
+
+      // 5. Contributions subcollection
       match /contributions/{contributionId} {
-        allow read: if true;
-        allow create, update: if isAuthenticated();
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId) && (
+          (request.resource.data.userId == request.auth.uid) ||
+          (request.resource.data.memberId == request.auth.uid)
+        );
+        allow update, delete: if false;
       }
 
+      // 6. Activities subcollection
       match /activities/{activityId} {
-        allow read: if true;
-        allow create, update: if isAuthenticated();
+        allow read: if isGroupMember(groupId);
+        allow create: if isGroupMember(groupId);
+        allow update, delete: if false;
       }
     }
   }

@@ -5,14 +5,38 @@
       "collection": "users",
       "fields": {
         "id": { "type": "string", "required": true },
-        "phone": { "type": "string", "required": true },
+        "phone": { "type": "string", "required": false },
         "displayName": { "type": "string", "required": true },
         "initials": { "type": "string", "required": true },
         "avatarColor": { "type": "string", "required": true },
+        "createdAt": { "type": "string", "required": true }
+      }
+    },
+    "UserPrivateDetails": {
+      "collection": "users/{userId}/private",
+      "fields": {
         "nin": { "type": "string", "required": false },
         "ninVerified": { "type": "boolean", "required": true },
         "ninVerifiedAt": { "type": "string", "required": false },
         "partnerBank": { "type": "map", "required": false },
+        "updatedAt": { "type": "string", "required": true }
+      }
+    },
+    "Invite": {
+      "collection": "invites",
+      "fields": {
+        "code": { "type": "string", "required": true },
+        "groupId": { "type": "string", "required": true },
+        "name": { "type": "string", "required": true },
+        "amount": { "type": "number", "required": true },
+        "currency": { "type": "string", "required": true },
+        "frequency": { "type": "string", "required": true },
+        "dueDay": { "type": "string", "required": true },
+        "size": { "type": "number", "required": true },
+        "memberCount": { "type": "number", "required": true },
+        "organiserName": { "type": "string", "required": true },
+        "organiserId": { "type": "string", "required": true },
+        "status": { "type": "string", "required": true },
         "createdAt": { "type": "string", "required": true }
       }
     },
@@ -24,6 +48,7 @@
         "code": { "type": "string", "required": true },
         "organiserId": { "type": "string", "required": true },
         "organiserName": { "type": "string", "required": true },
+        "memberIds": { "type": "list", "required": true },
         "rules": { "type": "map", "required": true },
         "wallet": { "type": "map", "required": true },
         "currentCycle": { "type": "map", "required": true },
@@ -39,6 +64,7 @@
         "id": { "type": "string", "required": true },
         "groupId": { "type": "string", "required": true },
         "memberId": { "type": "string", "required": true },
+        "userId": { "type": "string", "required": true },
         "memberName": { "type": "string", "required": true },
         "cycleNumber": { "type": "number", "required": true },
         "amount": { "type": "number", "required": true },

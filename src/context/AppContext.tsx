@@ -14,10 +14,12 @@ import {
   createRealGroup,
   joinGroupReal,
   recordRealContribution,
+  fetchInvitePreview,
   LiveUserProfile,
   LiveGroupData,
 } from '../lib/firebase';
-import { collection, onSnapshot, doc, getDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { runSafeMigration } from '../lib/migration';
+import { collection, onSnapshot, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
 interface ToastMessage {
   id: string;
@@ -164,8 +166,17 @@ const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Navigation
-  const [currentRoute, setCurrentRoute] = useState<string>('/home');
-  const [historyStack, setHistoryStack] = useState<string[]>(['/home']);
+  const [currentRoute, setCurrentRoute] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname && window.location.pathname !== '/') {
+      return window.location.pathname;
+    }
+    return '/home';
+  });
+  const [historyStack, setHistoryStack] = useState<string[]>([
+    typeof window !== 'undefined' && window.location.pathname && window.location.pathname !== '/'
+      ? window.location.pathname
+      : '/home',
+  ]);
 
   // Live Firebase User & Profile
   const [liveUserProfile, setLiveUserProfile] = useState<LiveUserProfile | null>(null);
@@ -225,6 +236,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (profile.partnerBank) {
             setPartnerBank(profile.partnerBank);
           }
+          // Safely migrate any existing documents
+          runSafeMigration(profile).catch((err) => {
+            console.warn('Migration non-blocking notice:', err);
+          });
         } catch (e) {
           console.error('Error fetching live profile:', e);
         }
@@ -233,10 +248,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => unsubscribe();
   }, []);
 
-  // Real-time Firestore sync for groups
+  // Real-time Firestore sync for groups the user is a member of
   useEffect(() => {
+    const targetUid = liveUserProfile?.id || auth.currentUser?.uid;
+    if (!targetUid) return;
+
     try {
-      const q = collection(db, 'groups');
+      const q = query(
+        collection(db, 'groups'),
+        where('memberIds', 'array-contains', targetUid)
+      );
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
@@ -255,6 +276,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 currentCycle: data.currentCycle as any,
                 payoutCalendar: data.payoutCalendar as any,
                 members: data.members as any,
+                memberIds: data.memberIds,
                 inviteLink: `adashenmu.app/join/${data.id}`,
               });
             });
@@ -269,7 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (err) {
       console.warn('Firestore init note:', err);
     }
-  }, []);
+  }, [liveUserProfile?.id]);
 
   // Compute active user details
   const currentUser = {
@@ -305,6 +327,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const navigate = (route: string) => {
     setHistoryStack((prev) => [...prev, route]);
     setCurrentRoute(route);
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.pushState({}, '', route);
+    }
     if (route.includes('/calendar')) {
       setGroupActiveTab('calendar');
     } else if (route.includes('/rules')) {
@@ -517,43 +542,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Join group by code or ID
+  // Join group by code or ID using safe invite preview
   const joinGroupByCodeOrId = async (codeOrId: string): Promise<Group> => {
     const cleaned = codeOrId.trim().toUpperCase();
-    // Check locally first
-    let match = groups.find((g) => g.id === codeOrId || (g.code && g.code.toUpperCase() === cleaned));
 
-    if (!match) {
-      // Check in Firestore
-      try {
-        const querySnapshot = await getDocs(collection(db, 'groups'));
-        querySnapshot.forEach((docSnap) => {
-          const d = docSnap.data() as LiveGroupData;
-          if (d.id === codeOrId || (d.code && d.code.toUpperCase() === cleaned)) {
-            match = {
-              id: d.id,
-              name: d.name,
-              code: d.code,
-              organiserId: d.organiserId,
-              rules: d.rules as any,
-              wallet: d.wallet as any,
-              currentCycle: d.currentCycle as any,
-              payoutCalendar: d.payoutCalendar as any,
-              members: d.members as any,
-              inviteLink: `adashenmu.app/join/${d.id}`,
-            };
-          }
-        });
-      } catch (err) {
-        console.warn('Firestore group lookup error:', err);
-      }
-    }
+    // 1. Check if user is already a member locally
+    let match = groups.find(
+      (g) => g.id === codeOrId.trim() || (g.code && g.code.toUpperCase() === cleaned)
+    );
 
-    if (!match) {
-      throw new Error(`No group found with code "${codeOrId}".`);
-    }
-
-    // Join the group
     const userProfile: LiveUserProfile = liveUserProfile || {
       id: currentUser.id,
       displayName: currentUser.name,
@@ -564,13 +561,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: new Date().toISOString(),
     };
 
-    try {
-      await joinGroupReal(match.id, userProfile);
-    } catch (e: any) {
-      console.warn('Real join notice:', e.message);
+    if (!match) {
+      // 2. Fetch public invite preview from invites/{code}
+      const invite = await fetchInvitePreview(codeOrId);
+      if (invite) {
+        await joinGroupReal(invite.groupId, userProfile, invite.code);
+
+        // Now authorized in memberIds, read the full group doc
+        const groupSnap = await getDoc(doc(db, 'groups', invite.groupId));
+        if (groupSnap.exists()) {
+          const d = groupSnap.data() as LiveGroupData;
+          match = {
+            id: d.id,
+            name: d.name,
+            code: d.code,
+            organiserId: d.organiserId,
+            rules: d.rules as any,
+            wallet: d.wallet as any,
+            currentCycle: d.currentCycle as any,
+            payoutCalendar: d.payoutCalendar as any,
+            members: d.members as any,
+            memberIds: d.memberIds,
+            inviteLink: `adashenmu.app/join/${d.id}`,
+          };
+        }
+      }
+    } else {
+      // User is joining an existing known group
+      try {
+        await joinGroupReal(match.id, userProfile, match.code);
+      } catch (e: any) {
+        console.warn('Real join notice:', e.message);
+      }
     }
 
-    // Add to local state if not present
+    if (!match) {
+      throw new Error(`No group found with code or link "${codeOrId}".`);
+    }
+
     setGroups((prev) => {
       if (prev.some((g) => g.id === match!.id)) return prev;
       return [match!, ...prev];

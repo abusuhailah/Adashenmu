@@ -12,8 +12,39 @@ export interface GroupRules { amount: number; currency: 'NGN'; frequency: Freque
 export interface Contribution { memberId: string; amount: number; state: MoneyState; at: string | null; }
 export interface Cycle { number: number; of: number; month: string; dueDate: string; payoutDate: string; payoutTo: string; contributions: Contribution[]; summary: { inThePot: number; confirming: number; pending: number; potTotal: number; target: number }; }
 export interface PayoutTurn { turn: number; memberId: string; date: string; amount: number; status: TurnStatus; }
-export interface Group { id: string; name: string; organiserId: string; code?: string; status?: string; rules: GroupRules; wallet?: { heldBy: string; balanceThisCycle: number; bankName?: string; accountNumber?: string; totalPotSaved?: number }; currentCycle?: Cycle; payoutCalendar?: PayoutTurn[]; inviteLink?: string; members?: Member[]; }
+export interface Group { id: string; name: string; organiserId: string; code?: string; status?: string; rules: GroupRules; wallet?: { heldBy: string; balanceThisCycle: number; bankName?: string; accountNumber?: string; totalPotSaved?: number }; currentCycle?: Cycle; payoutCalendar?: PayoutTurn[]; inviteLink?: string; members?: Member[]; memberIds?: string[]; }
 export interface ActivityItem { who: string; title: string; detail: string; amount: number; state: MoneyState; }
+
+export interface InvitePreview {
+  code: string;
+  groupId: string;
+  name: string;
+  amount: number;
+  currency: 'NGN';
+  frequency: Frequency;
+  dueDay: string;
+  size: number;
+  memberCount: number;
+  organiserName: string;
+  organiserId: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface UserPrivateDetails {
+  nin?: string;
+  ninVerified: boolean;
+  ninVerifiedAt?: string | null;
+  partnerBank?: {
+    bankName: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    isVerified: boolean;
+    linkedAt: string;
+  } | null;
+  updatedAt?: string;
+}
 
 // Money-state transitions (see BUILD-SPEC section 6)
 // pending -> confirming (member pays) -> inThePot (bank confirms) -> released (payout date, for the pot)

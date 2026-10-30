@@ -1,59 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBar } from '../components/common/StatusBar';
 import { Avatar } from '../components/common/Avatar';
 import { Icon } from '../components/common/Icon';
-import { formatNaira } from '../data/types';
+import { formatNaira, InvitePreview } from '../data/types';
+import { fetchInvitePreview } from '../lib/firebase';
 
 export const W01InviteWebPage: React.FC = () => {
-  const { navigate, groups, joinGroupByCodeOrId, showToast, partnerBank } = useApp();
+  const { navigate, joinGroupByCodeOrId, showToast, partnerBank, currentRoute } = useApp();
   const { language, t } = useLanguage();
   const [isJoining, setIsJoining] = useState(false);
+  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
 
-  const group = groups[0] || {
-    id: 'g-kasuwa-stall-weekly',
-    name: 'Kasuwa Stall Weekly',
-    code: 'KASU-8492',
-    organiserId: 'org1',
-    rules: {
-      amount: 5000,
-      currency: 'NGN',
-      frequency: 'weekly',
-      dueDay: 'Fri, 6 pm',
-      size: 8,
-      payoutAmount: 40000,
-      payoutOrder: 'draw',
-      lateRule: { graceDays: 1, feeAmount: 500, feeGoesTo: 'pot' },
-      startDate: 'Fri 6 Nov 2026',
-      endDate: 'Fri 25 Dec 2026',
-      changesNeedGroupVote: true,
-    },
-    wallet: {
-      heldBy: 'Licensed partner bank · NDIC Insured',
-      bankName: partnerBank?.bankName || 'Access Bank',
-      balanceThisCycle: 0,
-    },
-  };
+  // Extract invite code or ID from the URL path: /join/:codeOrId
+  const pathParam = currentRoute.startsWith('/join/')
+    ? currentRoute.replace('/join/', '')
+    : 'kasuwa-stall-weekly';
 
-  const bankName = group.wallet?.bankName || partnerBank?.bankName || 'Access Bank (CBN Licensed)';
-  const totalPayout = (group.rules?.amount || 5000) * (group.rules?.size || 8);
+  useEffect(() => {
+    let isMounted = true;
+    async function loadInvite() {
+      const preview = await fetchInvitePreview(pathParam);
+      if (isMounted && preview) {
+        setInvitePreview(preview);
+      }
+    }
+    loadInvite();
+    return () => {
+      isMounted = false;
+    };
+  }, [pathParam]);
+
+  // Safe preview data
+  const groupName = invitePreview?.name || 'Kasuwa Stall Weekly';
+  const groupCode = invitePreview?.code || 'KASU-8821';
+  const amount = invitePreview?.amount || 5000;
+  const frequency = invitePreview?.frequency || 'weekly';
+  const dueDay = invitePreview?.dueDay || 'Friday by 6 pm';
+  const size = invitePreview?.size || 8;
+  const memberCount = invitePreview?.memberCount || 1;
+  const organiserName = invitePreview?.organiserName || 'Hauwa Ibrahim';
+  const targetGroupId = invitePreview?.groupId || pathParam;
+
+  const totalPayout = amount * size;
+  const bankName = partnerBank?.bankName || 'Access Bank (CBN Licensed)';
 
   const handleAcceptAndJoin = async () => {
     setIsJoining(true);
     try {
-      await joinGroupByCodeOrId(group.id);
+      const joined = await joinGroupByCodeOrId(groupCode || targetGroupId);
       showToast(
         language === 'ha'
-          ? `Barka da zuwa! Kun shiga "${group.name}".`
-          : `Welcome! You have joined "${group.name}".`,
+          ? `Barka da zuwa! Kun shiga "${groupName}".`
+          : `Welcome! You have joined "${groupName}".`,
         'success'
       );
       setIsJoining(false);
-      navigate(`/groups/${group.id}/ledger`);
-    } catch {
+      navigate(`/groups/${joined.id}/ledger`);
+    } catch (err: any) {
       setIsJoining(false);
-      navigate(`/groups/${group.id}/ledger`);
+      showToast(err.message || 'Error joining group', 'alert');
     }
   };
 
@@ -66,12 +73,12 @@ export const W01InviteWebPage: React.FC = () => {
         <div className="px-5 py-2">
           <div className="h-9 px-3.5 rounded-full bg-[#EEF0EE] border border-[#E3DDCF] flex items-center gap-2 text-[12px] text-[#4F5F57] font-mono">
             <Icon name="lock" size={13} className="text-[#0F8A5F] shrink-0" />
-            <span className="truncate">adashenmu.app/join/{group.id}</span>
+            <span className="truncate">adashenmu.app/join/{groupCode}</span>
           </div>
         </div>
 
         <div className="px-5 pt-3 pb-6">
-          {/* Brand mark small */}
+          {/* Brand mark */}
           <div className="flex items-center gap-2 mb-5">
             <img src="/brand/adashenmu-mark.svg" alt="Adashenmu" className="w-8 h-8 object-contain" />
             <span className="font-heading font-extrabold text-[20px] text-[#0B3D2E] tracking-tight">
@@ -79,35 +86,31 @@ export const W01InviteWebPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Inviter row */}
+          {/* Inviter row (read from safe invite preview) */}
           <div className="flex items-center gap-3.5 mb-5 p-3 rounded-[14px] bg-white border border-[#E3DDCF]">
-            <Avatar initials="HI" color="clay" size={44} />
+            <Avatar initials={organiserName.slice(0, 2).toUpperCase()} color="clay" size={44} />
             <div>
               <p className="text-[14px] font-semibold text-[#0B3D2E]">
                 {language === 'ha'
-                  ? `An gayyace ku shiga ${group.name}`
-                  : `You were invited to join ${group.name}`}
+                  ? `${organiserName} ya gayyace ku shiga`
+                  : `${organiserName} invited you to join`}
               </p>
               <div className="flex items-center gap-1.5 text-[12px] text-[#0F8A5F] font-medium mt-0.5">
                 <Icon name="shield" size={13} strokeWidth={2.4} />
                 <span>
-                  {language === 'ha'
-                    ? 'Mai shirya ƙungiya · An tantance NIN'
-                    : 'Organiser · NIN verified'}
+                  {language === 'ha' ? 'Mai shirya ƙungiya · An tantance' : 'Organiser · Verified'}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Group details card */}
+          {/* Group details card from safe preview */}
           <div className="bg-white rounded-[16px] p-4 border border-[#E3DDCF] shadow-sm mb-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-heading font-bold text-[20px] text-[#0B3D2E]">
-                {group.name}
-              </h2>
-              {group.code && (
+              <h2 className="font-heading font-bold text-[20px] text-[#0B3D2E]">{groupName}</h2>
+              {groupCode && (
                 <span className="text-[11px] font-mono font-bold bg-[#FAF7F0] px-2 py-0.5 rounded border border-[#E3DDCF] text-[#0B3D2E]">
-                  {group.code}
+                  {groupCode}
                 </span>
               )}
             </div>
@@ -116,12 +119,12 @@ export const W01InviteWebPage: React.FC = () => {
             <div className="grid grid-cols-3 gap-2 py-3 border-y border-[#EFEAE0] mb-4">
               <div className="text-center">
                 <span className="block text-[11px] text-[#4F5F57] uppercase tracking-wider font-medium">
-                  {group.rules?.frequency === 'weekly'
+                  {frequency === 'weekly'
                     ? language === 'ha' ? 'Kowane mako' : 'Each week'
                     : language === 'ha' ? 'Kowane wata' : 'Each month'}
                 </span>
                 <span className="block font-heading font-bold text-[16px] text-[#0B3D2E] mt-0.5">
-                  {formatNaira(group.rules?.amount || 5000)}
+                  {formatNaira(amount)}
                 </span>
               </div>
               <div className="text-center border-x border-[#EFEAE0]">
@@ -129,7 +132,7 @@ export const W01InviteWebPage: React.FC = () => {
                   {language === 'ha' ? 'Mambobi' : 'Members'}
                 </span>
                 <span className="block font-heading font-bold text-[16px] text-[#0B3D2E] mt-0.5">
-                  {group.rules?.size || 8}
+                  {memberCount} / {size}
                 </span>
               </div>
               <div className="text-center">
@@ -153,8 +156,8 @@ export const W01InviteWebPage: React.FC = () => {
                 </div>
                 <span>
                   {language === 'ha'
-                    ? `Biyan kuɗi kowace ${group.rules?.dueDay || 'Juma\'a da misalin 6 na yamma'}`
-                    : `Pay on ${group.rules?.dueDay || 'Friday by 6 pm'}`}
+                    ? `Biyan kuɗi: ${dueDay}`
+                    : `Pay on ${dueDay}`}
                 </span>
               </div>
               <div className="flex items-start gap-2.5">
@@ -163,7 +166,7 @@ export const W01InviteWebPage: React.FC = () => {
                 </div>
                 <span>
                   {language === 'ha'
-                    ? 'Ana raba tsarin karɓar kuɗi a ranar farawa'
+                    ? 'Ana raba tsarin karɓar kuɗi a ranar farawa ta adashe'
                     : 'Payout order is drawn fairly when the group starts'}
                 </span>
               </div>
@@ -173,8 +176,8 @@ export const W01InviteWebPage: React.FC = () => {
                 </div>
                 <span>
                   {language === 'ha'
-                    ? `Gafara ta kwana ${group.rules?.lateRule?.graceDays || 1}, sannan tarar ${formatNaira(group.rules?.lateRule?.feeAmount || 500)} wadda za ta tafi cikin tukunyar ƙungiya`
-                    : `${group.rules?.lateRule?.graceDays || 1}-day grace, then ${formatNaira(group.rules?.lateRule?.feeAmount || 500)} late fee into the group pot`}
+                    ? 'Gafara ta kwana 1, sannan tarar rashin biya tana zuwa tukunyar ƙungiya'
+                    : '1-day grace, then late fee goes directly to the group pot'}
                 </span>
               </div>
             </div>

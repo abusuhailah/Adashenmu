@@ -7,7 +7,6 @@ import {
   onAuthStateChanged,
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  ConfirmationResult,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -22,10 +21,13 @@ import {
   onSnapshot,
   orderBy,
   addDoc,
-  serverTimestamp,
+  arrayUnion,
+  increment,
+  deleteField,
+  getDocs,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Group, Member, MoneyState } from '../data/types';
+import { Group, Member, MoneyState, InvitePreview, UserPrivateDetails } from '../data/types';
 
 // Initialize Firebase App singleton
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -66,6 +68,7 @@ export interface LiveGroupData {
   code: string;
   organiserId: string;
   organiserName: string;
+  memberIds: string[];
   rules: {
     amount: number;
     currency: 'NGN';
@@ -120,6 +123,7 @@ export interface LiveContribution {
   id: string;
   groupId: string;
   memberId: string;
+  userId: string;
   memberName: string;
   cycleNumber: number;
   amount: number;
@@ -141,68 +145,165 @@ export interface LiveActivity {
   timestamp: string;
 }
 
-// User Profile helpers
-export async function getOrCreateUserProfile(user: FirebaseUser, fallbackName?: string, phone?: string): Promise<LiveUserProfile> {
+/**
+ * Loads or creates user profile.
+ * Public fields stay in users/{uid}
+ * Private fields (NIN, partnerBank) are stored in users/{uid}/private/details
+ */
+export async function getOrCreateUserProfile(
+  user: FirebaseUser,
+  fallbackName?: string,
+  phone?: string
+): Promise<LiveUserProfile> {
   const userRef = doc(db, 'users', user.uid);
+  const privateRef = doc(db, 'users', user.uid, 'private', 'details');
+
   const snap = await getDoc(userRef);
 
+  let publicData: any;
   if (snap.exists()) {
-    return snap.data() as LiveUserProfile;
+    publicData = snap.data();
+  } else {
+    const name =
+      user.displayName || fallbackName || (phone ? `User ${phone.slice(-4)}` : 'Adashenmu Member');
+    const initials = name
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0].toUpperCase())
+      .slice(0, 2)
+      .join('');
+
+    const colors: ('green' | 'gold' | 'blue' | 'clay' | 'grey')[] = ['green', 'gold', 'blue', 'clay'];
+    const avatarColor = colors[Math.floor(Math.random() * colors.length)];
+
+    // Public document ONLY
+    publicData = {
+      id: user.uid,
+      phone: user.phoneNumber || phone || '',
+      displayName: name,
+      initials: initials || 'ME',
+      avatarColor,
+      createdAt: new Date().toISOString(),
+    };
+
+    await setDoc(userRef, publicData);
   }
 
-  const name = user.displayName || fallbackName || (phone ? `User ${phone.slice(-4)}` : 'Adashenmu Member');
-  const initials = name
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase())
-    .slice(0, 2)
-    .join('');
-
-  const colors: ('green' | 'gold' | 'blue' | 'clay' | 'grey')[] = ['green', 'gold', 'blue', 'clay'];
-  const avatarColor = colors[Math.floor(Math.random() * colors.length)];
-
-  const newProfile: LiveUserProfile = {
-    id: user.uid,
-    phone: user.phoneNumber || phone || '',
-    displayName: name,
-    initials: initials || 'ME',
-    avatarColor,
+  // Load private details from subcollection
+  let privateData: UserPrivateDetails = {
     ninVerified: false,
     partnerBank: null,
-    createdAt: new Date().toISOString(),
   };
 
-  await setDoc(userRef, newProfile);
-  return newProfile;
+  try {
+    const privateSnap = await getDoc(privateRef);
+    if (privateSnap.exists()) {
+      privateData = privateSnap.data() as UserPrivateDetails;
+    } else {
+      // Check if old public document had legacy private data to migrate
+      if (publicData.nin || publicData.partnerBank || publicData.ninVerified) {
+        privateData = {
+          nin: publicData.nin || undefined,
+          ninVerified: !!publicData.ninVerified,
+          ninVerifiedAt: publicData.ninVerifiedAt || null,
+          partnerBank: publicData.partnerBank || null,
+          updatedAt: new Date().toISOString(),
+        };
+        await setDoc(privateRef, privateData);
+
+        // Delete legacy fields from public document
+        await updateDoc(userRef, {
+          nin: deleteField(),
+          ninVerified: deleteField(),
+          ninVerifiedAt: deleteField(),
+          partnerBank: deleteField(),
+        });
+      } else {
+        await setDoc(privateRef, privateData);
+      }
+    }
+  } catch (err) {
+    console.warn('Private details fetch notice:', err);
+  }
+
+  return {
+    id: user.uid,
+    phone: publicData.phone || user.phoneNumber || phone || '',
+    displayName: publicData.displayName || 'Adashenmu Member',
+    initials: publicData.initials || 'ME',
+    avatarColor: publicData.avatarColor || 'clay',
+    nin: privateData.nin,
+    ninVerified: !!privateData.ninVerified,
+    ninVerifiedAt: privateData.ninVerifiedAt,
+    partnerBank: privateData.partnerBank || null,
+    createdAt: publicData.createdAt || new Date().toISOString(),
+  };
 }
 
+/**
+ * Stores partner bank details exclusively in users/{userId}/private/details
+ */
 export async function updatePartnerBank(
   userId: string,
   bank: { bankName: string; bankCode: string; accountNumber: string; accountName: string }
 ) {
-  const userRef = doc(db, 'users', userId);
+  const privateRef = doc(db, 'users', userId, 'private', 'details');
   const partnerBankData = {
     ...bank,
     isVerified: true,
     linkedAt: new Date().toISOString(),
   };
-  await updateDoc(userRef, { partnerBank: partnerBankData });
+
+  await setDoc(
+    privateRef,
+    {
+      partnerBank: partnerBankData,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+
   return partnerBankData;
 }
 
+/**
+ * Updates displayName in users/{userId} and stores NIN in users/{userId}/private/details
+ */
 export async function verifyUserNinDoc(userId: string, nin: string, fullName: string) {
   const userRef = doc(db, 'users', userId);
-  const patch = {
-    nin: nin.slice(0, 3) + '*****' + nin.slice(-3),
+  const privateRef = doc(db, 'users', userId, 'private', 'details');
+
+  const maskedNin = nin.slice(0, 3) + '*****' + nin.slice(-3);
+  const timestamp = new Date().toISOString();
+
+  // Public doc: update display name only
+  await updateDoc(userRef, {
+    displayName: fullName,
+  });
+
+  // Private subcollection: store verified NIN
+  await setDoc(
+    privateRef,
+    {
+      nin: maskedNin,
+      ninVerified: true,
+      ninVerifiedAt: timestamp,
+      updatedAt: timestamp,
+    },
+    { merge: true }
+  );
+
+  return {
+    nin: maskedNin,
     ninVerified: true,
-    ninVerifiedAt: new Date().toISOString(),
+    ninVerifiedAt: timestamp,
     displayName: fullName,
   };
-  await updateDoc(userRef, patch);
-  return patch;
 }
 
-// Group helpers
+/**
+ * Creates a real group with memberIds: [organiserId], and creates an invites/{code} preview document
+ */
 export async function createRealGroup(
   organiser: LiveUserProfile,
   draft: {
@@ -220,8 +321,11 @@ export async function createRealGroup(
   }
 ): Promise<LiveGroupData> {
   const groupId = 'group-' + Math.random().toString(36).substring(2, 8);
-  const code = draft.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) + '-' + Math.floor(1000 + Math.random() * 9000);
-  
+  const code =
+    draft.name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) +
+    '-' +
+    Math.floor(1000 + Math.random() * 9000);
+
   const totalPot = draft.amount * draft.size;
   const bankName = draft.partnerBankName || organiser.partnerBank?.bankName || 'Access Bank (CBN Licensed)';
   const accNum = '092' + Math.floor(1000000 + Math.random() * 9000000);
@@ -250,6 +354,7 @@ export async function createRealGroup(
     code,
     organiserId: organiser.id,
     organiserName: organiser.displayName,
+    memberIds: [organiser.id],
     rules: {
       amount: draft.amount,
       currency: 'NGN',
@@ -294,9 +399,32 @@ export async function createRealGroup(
     createdAt: new Date().toISOString(),
   };
 
+  // 1. Create full group document
   await setDoc(doc(db, 'groups', groupId), groupData);
 
-  // Add initial activity
+  // 2. Create public invite preview documents (by code and by groupId)
+  const invitePreview: InvitePreview = {
+    code,
+    groupId,
+    name: draft.name,
+    amount: draft.amount,
+    currency: 'NGN',
+    frequency: draft.frequency,
+    dueDay: draft.dueDay,
+    size: draft.size,
+    memberCount: 1,
+    organiserName: organiser.displayName,
+    organiserId: organiser.id,
+    status: 'forming',
+    createdAt: new Date().toISOString(),
+  };
+
+  await setDoc(doc(db, 'invites', code), invitePreview);
+  if (code !== groupId) {
+    await setDoc(doc(db, 'invites', groupId), invitePreview);
+  }
+
+  // 3. Add initial activity
   await addDoc(collection(db, 'groups', groupId, 'activities'), {
     groupId,
     who: organiser.id,
@@ -311,22 +439,57 @@ export async function createRealGroup(
   return groupData;
 }
 
-export async function joinGroupReal(groupId: string, user: LiveUserProfile): Promise<LiveGroupData> {
+/**
+ * Reads safe preview info from invites/{code}
+ */
+export async function fetchInvitePreview(codeOrId: string): Promise<InvitePreview | null> {
+  const cleaned = codeOrId.trim().toUpperCase();
+
+  // 1. Direct get from invites/{code}
+  try {
+    const snap = await getDoc(doc(db, 'invites', cleaned));
+    if (snap.exists()) {
+      return snap.data() as InvitePreview;
+    }
+  } catch {}
+
+  // 2. Try raw code/id
+  try {
+    const snap = await getDoc(doc(db, 'invites', codeOrId.trim()));
+    if (snap.exists()) {
+      return snap.data() as InvitePreview;
+    }
+  } catch {}
+
+  // 3. Query invites by code or groupId
+  try {
+    const q1 = query(collection(db, 'invites'), where('code', '==', cleaned));
+    const s1 = await getDocs(q1);
+    if (!s1.empty) {
+      return s1.docs[0].data() as InvitePreview;
+    }
+
+    const q2 = query(collection(db, 'invites'), where('groupId', '==', codeOrId.trim()));
+    const s2 = await getDocs(q2);
+    if (!s2.empty) {
+      return s2.docs[0].data() as InvitePreview;
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Joins a group as non-member:
+ * Updates groups/{groupId} adding user.id to memberIds and new Member to members.
+ * Keeps invites/{code} memberCount updated.
+ */
+export async function joinGroupReal(
+  groupId: string,
+  user: LiveUserProfile,
+  knownGroupCode?: string
+): Promise<void> {
   const groupRef = doc(db, 'groups', groupId);
-  const snap = await getDoc(groupRef);
-  if (!snap.exists()) {
-    throw new Error('Group not found');
-  }
-
-  const group = snap.data() as LiveGroupData;
-  const existing = group.members.find((m) => m.id === user.id);
-  if (existing) {
-    return group; // already joined
-  }
-
-  if (group.members.length >= group.rules.size) {
-    throw new Error('This group is already at full capacity');
-  }
 
   const newMember: Member = {
     id: user.id,
@@ -338,40 +501,51 @@ export async function joinGroupReal(groupId: string, user: LiveUserProfile): Pro
     ninVerified: user.ninVerified,
   };
 
-  const updatedMembers = [...group.members, newMember];
-
-  // Assign slot in payout calendar if available
-  const slotIdx = group.payoutCalendar.findIndex((t) => t.memberId.startsWith('slot-'));
-  const updatedCalendar = [...group.payoutCalendar];
-  if (slotIdx !== -1) {
-    updatedCalendar[slotIdx] = {
-      ...updatedCalendar[slotIdx],
-      memberId: user.id,
-    };
-  }
-
-  const patch: Partial<LiveGroupData> = {
-    members: updatedMembers,
-    payoutCalendar: updatedCalendar,
-  };
-
-  await updateDoc(groupRef, patch);
-
-  // Activity record
-  await addDoc(collection(db, 'groups', groupId, 'activities'), {
-    groupId,
-    who: user.id,
-    whoName: user.displayName,
-    title: `${user.displayName} joined the group`,
-    detail: `Member #${updatedMembers.length} of ${group.rules.size}`,
-    amount: 0,
-    state: 'inThePot',
-    timestamp: new Date().toISOString(),
+  // Perform atomic join update
+  await updateDoc(groupRef, {
+    memberIds: arrayUnion(user.id),
+    members: arrayUnion(newMember),
   });
 
-  return { ...group, ...patch } as LiveGroupData;
+  // Now that user is in memberIds, read group details for activity logging
+  try {
+    const snap = await getDoc(groupRef);
+    if (snap.exists()) {
+      const gData = snap.data() as LiveGroupData;
+
+      // Update invite previews
+      const inviteCode = knownGroupCode || gData.code;
+      if (inviteCode) {
+        try {
+          await updateDoc(doc(db, 'invites', inviteCode), {
+            memberCount: gData.members.length,
+          });
+        } catch {}
+      }
+
+      // Add activity entry
+      await addDoc(collection(db, 'groups', groupId, 'activities'), {
+        groupId,
+        who: user.id,
+        whoName: user.displayName,
+        title: `${user.displayName} joined the group`,
+        detail: `Member #${gData.members.length} of ${gData.rules.size}`,
+        amount: 0,
+        state: 'inThePot',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    console.warn('Post-join step notice:', err);
+  }
 }
 
+/**
+ * Records a real contribution:
+ * Writes contribution to groups/{groupId}/contributions
+ * Updates wallet & currentCycle on groups/{groupId}
+ * Adds activity to groups/{groupId}/activities
+ */
 export async function recordRealContribution(
   groupId: string,
   user: LiveUserProfile,
@@ -386,11 +560,14 @@ export async function recordRealContribution(
   const group = groupSnap.data() as LiveGroupData;
   const newBalance = (group.wallet?.balanceThisCycle || 0) + amount;
   const newPotTotal = (group.currentCycle?.potTotal || 0) + amount;
+  const newInThePotCount = Math.min(group.rules.size, (group.currentCycle?.inThePotCount || 0) + 1);
+  const newPendingCount = Math.max(0, (group.currentCycle?.pendingCount || 1) - 1);
 
-  // Add contribution record
+  // 1. Add contribution record (includes both memberId and userId for rule matching)
   await addDoc(collection(db, 'groups', groupId, 'contributions'), {
     groupId,
     memberId: user.id,
+    userId: user.id,
     memberName: user.displayName,
     cycleNumber: group.currentCycle.number,
     amount,
@@ -400,15 +577,21 @@ export async function recordRealContribution(
     paidAt: new Date().toISOString(),
   });
 
-  // Update group stats
+  // 2. Update group wallet and currentCycle fields only
   await updateDoc(groupRef, {
-    'wallet.balanceThisCycle': newBalance,
-    'currentCycle.potTotal': newPotTotal,
-    'currentCycle.inThePotCount': Math.min(group.rules.size, (group.currentCycle.inThePotCount || 0) + 1),
-    'currentCycle.pendingCount': Math.max(0, (group.currentCycle.pendingCount || 1) - 1),
+    wallet: {
+      ...group.wallet,
+      balanceThisCycle: newBalance,
+    },
+    currentCycle: {
+      ...group.currentCycle,
+      potTotal: newPotTotal,
+      inThePotCount: newInThePotCount,
+      pendingCount: newPendingCount,
+    },
   });
 
-  // Log activity
+  // 3. Log activity
   await addDoc(collection(db, 'groups', groupId, 'activities'), {
     groupId,
     who: user.id,
