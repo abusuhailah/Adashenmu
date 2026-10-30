@@ -44,6 +44,7 @@ export const db = firebaseConfig.firestoreDatabaseId
 
 export interface LiveUserProfile {
   id: string;
+  email?: string;
   phone: string;
   displayName: string;
   initials: string;
@@ -179,6 +180,7 @@ export async function getOrCreateUserProfile(
     // Public document ONLY
     publicData = {
       id: user.uid,
+      email: user.email || '',
       phone: user.phoneNumber || phone || '',
       displayName: name,
       initials: initials || 'ME',
@@ -228,8 +230,9 @@ export async function getOrCreateUserProfile(
 
   return {
     id: user.uid,
+    email: user.email || publicData?.email || '',
     phone: publicData.phone || user.phoneNumber || phone || '',
-    displayName: publicData.displayName || 'Adashenmu Member',
+    displayName: publicData.displayName || user.displayName || 'Adashenmu Member',
     initials: publicData.initials || 'ME',
     avatarColor: publicData.avatarColor || 'clay',
     nin: privateData.nin,

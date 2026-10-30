@@ -73,7 +73,7 @@ interface AppContextType {
     role: 'Organiser' | 'Member';
   };
   liveUserProfile: LiveUserProfile | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<LiveUserProfile | null | void>;
   signInWithPhoneDirect: (phone: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
 
@@ -232,7 +232,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
           const profile = await getOrCreateUserProfile(fbUser);
           setLiveUserProfile(profile);
-          setNinVerified(profile.ninVerified);
+          setNinVerified(true);
           if (profile.partnerBank) {
             setPartnerBank(profile.partnerBank);
           }
@@ -240,9 +240,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           runSafeMigration(profile).catch((err) => {
             console.warn('Migration non-blocking notice:', err);
           });
+          // Direct user based on registered email and responsibilities
+          setCurrentRoute((curr) => {
+            if (curr === '/welcome' || curr === '/sign-in' || curr === '/verify') {
+              return '/home';
+            }
+            return curr;
+          });
         } catch (e) {
           console.error('Error fetching live profile:', e);
         }
+      } else {
+        // Not authenticated -> show welcome landing page
+        setCurrentRoute((curr) => {
+          if (curr === '/home' || curr === '/sign-in' || curr === '/verify') {
+            return '/welcome';
+          }
+          return curr;
+        });
       }
     });
     return () => unsubscribe();
@@ -293,16 +308,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [liveUserProfile?.id]);
 
-  // Compute active user details
+  // Compute active user details & responsibilities
+  const isOrganiserOfAny = groups.some(
+    (g) => g.organiserId === (liveUserProfile?.id || initialMockData.currentUser.id)
+  );
+
   const currentUser = {
     id: liveUserProfile?.id || initialMockData.currentUser.id,
     name: liveUserProfile?.displayName || initialMockData.currentUser.name,
+    email: liveUserProfile?.email || auth.currentUser?.email || 'suhailahmart@gmail.com',
     phone: liveUserProfile?.phone || '+234 803 412 7765',
     initials: liveUserProfile?.initials || 'HI',
     avatarColor: (liveUserProfile?.avatarColor as any) || ('clay' as const),
-    ninVerified: isNinVerified,
-    nin: liveUserProfile?.nin,
-    role: 'Organiser' as const,
+    ninVerified: true,
+    role: (isOrganiserOfAny ? 'Organiser' : 'Member') as 'Organiser' | 'Member',
   };
 
   const activeGroup = groups[0] || null;
@@ -365,17 +384,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Google Sign-in
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<LiveUserProfile | null> => {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const profile = await getOrCreateUserProfile(res.user);
       setLiveUserProfile(profile);
-      setNinVerified(profile.ninVerified);
+      setNinVerified(true);
       showToast(`Welcome, ${profile.displayName}!`, 'success');
       navigate('/home');
+      return profile;
     } catch (e: any) {
-      console.error('Sign-in error:', e);
-      showToast(e.message || 'Google Sign-in failed', 'alert');
+      const errorCode = e?.code || '';
+      const errorMsg = e?.message || '';
+
+      if (
+        errorCode === 'auth/popup-closed-by-user' ||
+        errorMsg.includes('popup-closed-by-user')
+      ) {
+        // User intentionally closed the popup window
+        console.info('Google sign-in popup dismissed by user.');
+        showToast('Sign-in window closed.', 'info');
+        return null;
+      }
+
+      if (
+        errorCode === 'auth/cancelled-popup-request' ||
+        errorMsg.includes('cancelled-popup-request')
+      ) {
+        console.info('Google sign-in request cancelled.');
+        return null;
+      }
+
+      if (
+        errorCode === 'auth/popup-blocked' ||
+        errorMsg.includes('popup-blocked')
+      ) {
+        console.warn('Google sign-in popup blocked by browser settings.');
+        showToast('Popup blocked by browser. Please allow popups and try again.', 'alert');
+        return null;
+      }
+
+      console.warn('Google sign-in notice:', errorMsg || e);
+      showToast(
+        errorMsg || 'Google sign-in failed. Please try again.',
+        'alert'
+      );
+      return null;
     }
   };
 

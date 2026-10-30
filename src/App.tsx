@@ -42,11 +42,10 @@ const AppContent: React.FC = () => {
   const renderScreen = () => {
     switch (currentRoute) {
       case '/welcome':
-        return <M01Welcome />;
       case '/sign-in':
-        return <M02PhoneAndOtp />;
+        return <M01Welcome />;
       case '/verify':
-        return <M03VerifyIdentity />;
+        return <M04Home />;
       case '/home':
         return <M04Home />;
       case '/groups':

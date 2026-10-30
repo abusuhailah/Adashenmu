@@ -15,6 +15,7 @@ export const M05MyGroups: React.FC = () => {
     potConfirmedCount,
     userContributionState,
     setJoinModalOpen,
+    currentUser,
   } = useApp();
   const { language, t } = useLanguage();
 
@@ -31,6 +32,7 @@ export const M05MyGroups: React.FC = () => {
             const size = group.rules?.size || 10;
             const confirmedCount = isFirst ? potConfirmedCount : Math.min(size, group.members?.length || 1);
             const progressPercent = Math.min(100, Math.round((confirmedCount / size) * 100));
+            const isOrganiser = group.organiserId === currentUser.id;
 
             return (
               <div
@@ -45,7 +47,7 @@ export const M05MyGroups: React.FC = () => {
                       <Icon name="pot" size={24} strokeWidth={2.2} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-heading font-bold text-[17px] text-[#0B3D2E] leading-tight">
                           {group.name}
                         </h3>
@@ -54,6 +56,17 @@ export const M05MyGroups: React.FC = () => {
                             {group.code}
                           </span>
                         )}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isOrganiser
+                              ? 'bg-[#E3F4EC] text-[#0B6E4B] border border-[#0F8A5F]/20'
+                              : 'bg-[#EBF3FB] text-[#1E5D88] border border-[#1E5D88]/20'
+                          }`}
+                        >
+                          {isOrganiser
+                            ? language === 'ha' ? 'Mai Shirya' : 'Organiser'
+                            : language === 'ha' ? 'Mamba' : 'Member'}
+                        </span>
                       </div>
                       <p className="text-[12px] text-[#4F5F57] mt-0.5">
                         {formatNaira(group.rules?.amount || 20000)}{' '}

@@ -11,6 +11,8 @@ export const M18Profile: React.FC = () => {
   const {
     navigate,
     currentUser,
+    liveUserProfile,
+    groups,
     isNinVerified,
     partnerBank,
     setPartnerBankModalOpen,
@@ -44,15 +46,13 @@ export const M18Profile: React.FC = () => {
               <h2 className="font-heading font-bold text-[18px] text-[#0B3D2E] leading-tight truncate">
                 {currentUser.name}
               </h2>
-              <span className="text-[13px] text-[#4F5F57] block mt-0.5 font-mono">
-                {currentUser.phone || '+234 803 412 7765'}
+              <span className="text-[13px] text-[#4F5F57] block mt-0.5 truncate font-mono">
+                {liveUserProfile?.email || 'suhailahmart@gmail.com'}
               </span>
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#0F8A5F] mt-1">
                 <Icon name="shield" size={13} strokeWidth={2.4} />
                 <span>
-                  {isNinVerified
-                    ? t('idVerifiedNIN')
-                    : language === 'ha' ? 'Ba a tantance NIN ba' : 'NIN unverified'}
+                  {language === 'ha' ? 'Asusun Google da aka tantance' : 'Verified Google Account'}
                 </span>
               </div>
             </div>
@@ -103,27 +103,26 @@ export const M18Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Identity */}
-            <div
-              onClick={() => navigate('/verify')}
-              className="p-3.5 flex items-center justify-between hover:bg-[#FAF7F0] cursor-pointer transition-colors"
-            >
+            {/* Google Account & Role */}
+            <div className="p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[10px] bg-[#FAF7F0] text-[#0B3D2E] flex items-center justify-center shrink-0">
-                  <Icon name="shield" size={18} />
+                <div className="w-9 h-9 rounded-[10px] bg-[#FAF7F0] text-[#0F8A5F] flex items-center justify-center shrink-0">
+                  <Icon name="user" size={18} />
                 </div>
                 <div>
                   <span className="text-[14px] font-semibold text-[#0B3D2E] block">
-                    {t('identity')}
+                    {language === 'ha' ? 'Halin Aiki & Alhaki' : 'Account & Responsibilities'}
                   </span>
                   <span className="text-[12px] text-[#4F5F57] block mt-0.5">
-                    {isNinVerified
-                      ? language === 'ha' ? 'An tantance NIN da NIMC' : 'NIN verified with NIMC'
-                      : language === 'ha' ? 'Danna nan don tantance NIN' : 'Tap to verify NIN with NIMC'}
+                    {groups.some((g) => g.organiserId === currentUser.id)
+                      ? language === 'ha' ? 'Mai Shirya Ƙungiya & Mamba' : 'Group Organiser & Member'
+                      : language === 'ha' ? 'Mamba Mai Aiki' : 'Active Group Member'}
                   </span>
                 </div>
               </div>
-              <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
+              <span className="text-[11px] font-bold text-[#0F8A5F] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
+                ACTIVE
+              </span>
             </div>
 
             {/* Language */}

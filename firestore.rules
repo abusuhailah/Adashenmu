@@ -22,41 +22,34 @@ service cloud.firestore {
       return isAuthenticated() && groupData(groupId).organiserId == request.auth.uid;
     }
 
-    // Fields that must never change after a group is created, except by the organiser
     function coreUnchanged() {
       return request.resource.data.organiserId == resource.data.organiserId &&
         request.resource.data.rules == resource.data.rules;
     }
 
-    // 1. Users collection: public profiles
     match /users/{uid} {
       allow read: if isAuthenticated();
       allow create, update: if isOwner(uid);
       allow delete: if false;
 
-      // 2. Private subcollection: NIN, partnerBank details. Owner only.
       match /private/{docId} {
         allow read, write: if isOwner(uid);
       }
     }
 
-    // 3. Invites collection: safe group preview info
     match /invites/{code} {
       allow read: if true;
 
-      // Only the real organiser of the group can create its invite
       allow create: if isAuthenticated() &&
         request.resource.data.organiserId == request.auth.uid &&
         isGroupOrganiser(request.resource.data.groupId);
 
       allow update: if isAuthenticated() && (
-        // Organiser can update the invite (groupId and organiser cannot be moved)
         (
           resource.data.organiserId == request.auth.uid &&
           request.resource.data.groupId == resource.data.groupId &&
           request.resource.data.organiserId == resource.data.organiserId
         ) ||
-        // A group member can only sync the member count to the real number of members
         (
           isGroupMember(resource.data.groupId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount']) &&
@@ -67,33 +60,23 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.organiserId == request.auth.uid;
     }
 
-    // 4. Groups collection
     match /groups/{groupId} {
-      // Members can read. The organiser can always read their own group
-      // (needed for migrating older groups that do not have memberIds yet).
       allow read: if isAuthenticated() && (
         resource.data.organiserId == request.auth.uid ||
         request.auth.uid in resource.data.get('memberIds', [])
       );
 
-      // Create only if signed in, organiserId is self, and memberIds is [self]
       allow create: if isAuthenticated() &&
         request.resource.data.organiserId == request.auth.uid &&
         request.resource.data.memberIds == [request.auth.uid];
 
-      // Delete only by the group organiser
       allow delete: if isAuthenticated() && resource.data.organiserId == request.auth.uid;
 
       allow update: if isAuthenticated() && (
-        // Case A: Organiser can update the group (but cannot hand it to someone else)
         (
           resource.data.organiserId == request.auth.uid &&
           request.resource.data.organiserId == resource.data.organiserId
         ) ||
-
-        // Case B: Non-member joining.
-        // They may only add themselves once, as a plain Member, to the end of the list.
-        // They cannot touch the payout calendar, wallet, rules or anything else.
         (
           !(request.auth.uid in resource.data.memberIds) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberIds']) &&
@@ -104,10 +87,6 @@ service cloud.firestore {
           request.resource.data.members[resource.data.members.size()].role == 'Member' &&
           coreUnchanged()
         ) ||
-
-        // Case C: Member recording a contribution.
-        // Only the running totals may change. Bank name, account number and
-        // wallet holder are locked, so nobody can redirect the payout account.
         (
           request.auth.uid in resource.data.memberIds &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['wallet', 'currentCycle']) &&
@@ -120,7 +99,6 @@ service cloud.firestore {
         )
       );
 
-      // 5. Contributions subcollection
       match /contributions/{contributionId} {
         allow read: if isGroupMember(groupId);
         allow create: if isGroupMember(groupId) &&
@@ -131,7 +109,6 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      // 6. Activities subcollection: members can only post as themselves
       match /activities/{activityId} {
         allow read: if isGroupMember(groupId);
         allow create: if isGroupMember(groupId) && request.resource.data.who == request.auth.uid;

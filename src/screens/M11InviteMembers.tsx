@@ -26,50 +26,40 @@ export const M11InviteMembers: React.FC = () => {
   const groupSize = activeGroup?.rules.size || createGroupDraft.size;
   const bankName = activeGroup?.wallet?.bankName || partnerBank?.bankName || 'Access Bank (CBN Licensed)';
 
-  const inviteLink = `${window.location.origin}/join/${activeGroup?.id || 'kasuwa-stall-weekly'}`;
+  const inviteLink = `${window.location.origin}/join/${activeGroup?.code || activeGroup?.id || 'KASU-8821'}`;
 
-  const [invitedMembers, setInvitedMembers] = useState<InviteMember[]>([
-    {
-      id: 'inv1',
-      name: 'Zainab Musa',
-      initials: 'ZM',
-      avatarColor: 'green',
-      status: 'joined',
-      subtitle: language === 'ha' ? 'Ta shiga · An tantance NIN' : 'Joined · ID verified',
-    },
-    {
-      id: 'inv2',
-      name: 'Aisha Bello',
-      initials: 'AB',
-      avatarColor: 'clay',
-      status: 'joined',
-      subtitle: language === 'ha' ? 'Ta shiga · An tantance NIN' : 'Joined · ID verified',
-    },
-    {
-      id: 'inv3',
-      name: 'Fatima Yusuf',
-      initials: 'FY',
-      avatarColor: 'blue',
-      status: 'joined',
-      subtitle: language === 'ha' ? 'Ta shiga · An tantance NIN' : 'Joined · ID verified',
-    },
-    {
-      id: 'inv4',
-      name: 'Hadiza Lawal',
-      initials: 'HL',
-      avatarColor: 'gold',
-      status: 'joined',
-      subtitle: language === 'ha' ? 'Ta shiga · An tantance NIN' : 'Joined · ID verified',
-    },
-    {
-      id: 'inv5',
-      name: 'Maryam Sani',
-      initials: 'MS',
-      avatarColor: 'grey',
-      status: 'invited',
-      subtitle: language === 'ha' ? 'An gayyace ta' : 'Invited · pending',
-    },
-  ]);
+  // If real group has members, show them
+  const initialMembersList: InviteMember[] = activeGroup?.members && activeGroup.members.length > 0
+    ? activeGroup.members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        initials: m.initials,
+        avatarColor: m.avatarColor,
+        status: 'joined' as const,
+        subtitle: m.role === 'Organiser'
+          ? (language === 'ha' ? 'Mai Shirya · Asusun Google' : 'Organiser · Google Account')
+          : (language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account'),
+      }))
+    : [
+        {
+          id: 'inv1',
+          name: 'Zainab Musa',
+          initials: 'ZM',
+          avatarColor: 'green',
+          status: 'joined',
+          subtitle: language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account',
+        },
+        {
+          id: 'inv2',
+          name: 'Aisha Bello',
+          initials: 'AB',
+          avatarColor: 'clay',
+          status: 'joined',
+          subtitle: language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account',
+        },
+      ];
+
+  const [invitedMembers, setInvitedMembers] = useState<InviteMember[]>(initialMembersList);
 
   const handleCopyLink = () => {
     navigator.clipboard?.writeText(inviteLink);

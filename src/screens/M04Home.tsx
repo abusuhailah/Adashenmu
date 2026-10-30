@@ -23,6 +23,7 @@ export const M04Home: React.FC = () => {
     totalCycleContribution,
     partnerBank,
     setPartnerBankModalOpen,
+    setJoinModalOpen,
   } = useApp();
   const { language, t } = useLanguage();
 
@@ -34,6 +35,7 @@ export const M04Home: React.FC = () => {
   const progressPercent = Math.min(100, Math.round((potConfirmedCount / groupSize) * 100));
 
   const firstName = currentUser.name.split(' ')[0] || 'Member';
+  const isOrganiser = activeGroup?.organiserId === currentUser.id;
 
   return (
     <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
@@ -46,9 +48,24 @@ export const M04Home: React.FC = () => {
             <span className="text-[12px] font-medium text-[#4F5F57] block">
               {t('dateMonday')}
             </span>
-            <h1 className="font-heading font-bold text-[24px] text-[#0B3D2E] leading-tight">
-              {language === 'ha' ? `Sannu, ${firstName}` : `Welcome, ${firstName}`}
-            </h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <h1 className="font-heading font-bold text-[22px] text-[#0B3D2E] leading-tight">
+                {language === 'ha' ? `Sannu, ${firstName}` : `Welcome, ${firstName}`}
+              </h1>
+              {activeGroup && (
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    isOrganiser
+                      ? 'bg-[#E3F4EC] text-[#0B6E4B] border border-[#0F8A5F]/20'
+                      : 'bg-[#EBF3FB] text-[#1E5D88] border border-[#1E5D88]/20'
+                  }`}
+                >
+                  {isOrganiser
+                    ? language === 'ha' ? 'Mai Shirya' : 'Organiser'
+                    : language === 'ha' ? 'Mamba' : 'Member'}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

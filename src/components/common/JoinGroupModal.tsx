@@ -9,7 +9,7 @@ interface JoinGroupModalProps {
 }
 
 export const JoinGroupModal: React.FC<JoinGroupModalProps> = ({ isOpen, onClose }) => {
-  const { joinGroupByCodeOrId, showToast, navigate } = useApp();
+  const { joinGroupByCodeOrId, showToast, navigate, liveUserProfile, signInWithGoogle } = useApp();
   const { language, t } = useLanguage();
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,6 +21,14 @@ export const JoinGroupModal: React.FC<JoinGroupModalProps> = ({ isOpen, onClose 
 
     setIsLoading(true);
     try {
+      if (!liveUserProfile) {
+        const prof = await signInWithGoogle();
+        if (!prof) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const group = await joinGroupByCodeOrId(code.trim());
       showToast(
         language === 'ha'
