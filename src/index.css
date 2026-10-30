@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0B3D2E;
+  --color-text-muted: #4F5F57;
+  --color-faint: #8A968F;
+  --color-primary: #0F8A5F;
+  --color-primary-pressed: #0B6E4B;
+  --color-primary-soft: #E3F4EC;
+  --color-on-dark: #2FBF85;
+  --color-forest-deep: #072A20;
+  --color-accent: #F2B33D;
+  --color-accent-deep: #C98A12;
+  --color-accent-soft: #FFF4DB;
+  --color-clay: #C8643B;
+  --color-clay-soft: #F6E4DA;
+  --color-surface: #FFFFFF;
+  --color-background: #FAF7F0;
+  --color-line: #E3DDCF;
+  --color-line-soft: #EFEAE0;
+  --color-blue: #1D4ED8;
+  --color-blue-soft: #E6EEFF;
+  --color-red: #B42318;
+  --color-red-soft: #FDECEA;
+  --color-grey-soft: #EEF0EE;
+
+  --font-heading: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  --radius-input: 10px;
+  --radius-chip: 8px;
+  --radius-icon-tile: 12px;
+  --radius-button: 14px;
+  --radius-card: 16px;
+  --radius-sheet: 20px;
+}
+
+:root {
+  --color-ink: #0B3D2E;
+  --color-textMuted: #4F5F57;
+  --color-faint: #8A968F;
+  --color-primary: #0F8A5F;
+  --color-primaryPressed: #0B6E4B;
+  --color-primarySoft: #E3F4EC;
+  --color-onDark: #2FBF85;
+  --color-forestDeep: #072A20;
+  --color-accent: #F2B33D;
+  --color-accentDeep: #C98A12;
+  --color-accentSoft: #FFF4DB;
+  --color-clay: #C8643B;
+  --color-claySoft: #F6E4DA;
+  --color-surface: #FFFFFF;
+  --color-background: #FAF7F0;
+  --color-line: #E3DDCF;
+  --color-lineSoft: #EFEAE0;
+  --color-blue: #1D4ED8;
+  --color-blueSoft: #E6EEFF;
+  --color-red: #B42318;
+  --color-redSoft: #FDECEA;
+  --color-greySoft: #EEF0EE;
+  --font-heading: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #FAF7F0;
+  color: #0B3D2E;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
+}
+
+/* Custom scrollbars inside the phone viewport */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,0 +1,496 @@
+{
+  "_note": "Mock data for the prototype. Fictional people; simulated story. Today in the story is Mon 26 Oct 2026, 9:41.",
+  "today": "2026-10-26T09:41",
+  "currentUser": {
+    "id": "m01",
+    "name": "Hauwa Ibrahim",
+    "greeting": "Sannu, Hauwa",
+    "phone": "+234 803 412 7765",
+    "nin": {
+      "verified": true,
+      "verifiedOn": "2026-06-28"
+    },
+    "payoutAccount": {
+      "bank": "GTBank",
+      "last4": "4821",
+      "accountName": "Hauwa Ibrahim"
+    },
+    "language": "en",
+    "languages": [
+      "en",
+      "ha"
+    ],
+    "reminders": "Push and SMS, 2 days before",
+    "paymentRecord": {
+      "paidOnTime": 3,
+      "of": 3,
+      "group": "Kasuwa Atamfa Adashe"
+    }
+  },
+  "members": [
+    {
+      "id": "m01",
+      "name": "Hauwa Ibrahim",
+      "initials": "HI",
+      "avatarColor": "clay",
+      "isYou": true,
+      "role": "Organiser",
+      "ninVerified": true
+    },
+    {
+      "id": "m02",
+      "name": "Zainab Musa",
+      "initials": "ZM",
+      "avatarColor": "green",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m03",
+      "name": "Aisha Bello",
+      "initials": "AB",
+      "avatarColor": "clay",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m04",
+      "name": "Fatima Yusuf",
+      "initials": "FY",
+      "avatarColor": "blue",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m05",
+      "name": "Hadiza Lawal",
+      "initials": "HL",
+      "avatarColor": "gold",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m06",
+      "name": "Maryam Sani",
+      "initials": "MS",
+      "avatarColor": "green",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m07",
+      "name": "Rukayya Adamu",
+      "initials": "RA",
+      "avatarColor": "blue",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m08",
+      "name": "Halima Garba",
+      "initials": "HG",
+      "avatarColor": "grey",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m09",
+      "name": "Safiya Umar",
+      "initials": "SU",
+      "avatarColor": "gold",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    },
+    {
+      "id": "m10",
+      "name": "Amina Danjuma",
+      "initials": "AD",
+      "avatarColor": "green",
+      "isYou": false,
+      "role": "Member",
+      "ninVerified": true
+    }
+  ],
+  "groups": [
+    {
+      "id": "g-kasuwa-atamfa",
+      "name": "Kasuwa Atamfa Adashe",
+      "organiserId": "m01",
+      "rules": {
+        "amount": 20000,
+        "currency": "NGN",
+        "frequency": "monthly",
+        "dueDay": "28th of each month",
+        "size": 10,
+        "payoutAmount": 200000,
+        "payoutOrder": "draw",
+        "orderDrawnOn": "2026-07-01",
+        "lateRule": {
+          "graceDays": 2,
+          "feeAmount": 1000,
+          "feeGoesTo": "pot"
+        },
+        "changesNeedGroupVote": true
+      },
+      "wallet": {
+        "heldBy": "Licensed partner bank (concept)",
+        "balanceThisCycle": 140000
+      },
+      "currentCycle": {
+        "number": 4,
+        "of": 10,
+        "month": "October 2026",
+        "dueDate": "2026-10-28",
+        "payoutDate": "2026-10-31",
+        "payoutTo": "m05",
+        "contributions": [
+          {
+            "memberId": "m01",
+            "amount": 20000,
+            "state": "pending",
+            "at": null
+          },
+          {
+            "memberId": "m09",
+            "amount": 20000,
+            "state": "pending",
+            "at": null
+          },
+          {
+            "memberId": "m07",
+            "amount": 20000,
+            "state": "confirming",
+            "at": "2026-10-26T09:12"
+          },
+          {
+            "memberId": "m10",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-25"
+          },
+          {
+            "memberId": "m08",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-25"
+          },
+          {
+            "memberId": "m06",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-25"
+          },
+          {
+            "memberId": "m05",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-23"
+          },
+          {
+            "memberId": "m04",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-22"
+          },
+          {
+            "memberId": "m03",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-22"
+          },
+          {
+            "memberId": "m02",
+            "amount": 20000,
+            "state": "inThePot",
+            "at": "2026-10-21"
+          }
+        ],
+        "summary": {
+          "inThePot": 7,
+          "confirming": 1,
+          "pending": 2,
+          "potTotal": 140000,
+          "target": 200000
+        }
+      },
+      "payoutCalendar": [
+        {
+          "turn": 1,
+          "memberId": "m02",
+          "date": "2026-07-31",
+          "amount": 200000,
+          "status": "collected"
+        },
+        {
+          "turn": 2,
+          "memberId": "m03",
+          "date": "2026-08-31",
+          "amount": 200000,
+          "status": "collected"
+        },
+        {
+          "turn": 3,
+          "memberId": "m04",
+          "date": "2026-09-30",
+          "amount": 200000,
+          "status": "collected"
+        },
+        {
+          "turn": 4,
+          "memberId": "m05",
+          "date": "2026-10-31",
+          "amount": 200000,
+          "status": "next"
+        },
+        {
+          "turn": 5,
+          "memberId": "m01",
+          "date": "2026-11-30",
+          "amount": 200000,
+          "status": "yourTurn"
+        },
+        {
+          "turn": 6,
+          "memberId": "m06",
+          "date": "2026-12-31",
+          "amount": 200000,
+          "status": "upcoming"
+        },
+        {
+          "turn": 7,
+          "memberId": "m07",
+          "date": "2027-01-31",
+          "amount": 200000,
+          "status": "upcoming"
+        },
+        {
+          "turn": 8,
+          "memberId": "m08",
+          "date": "2027-02-28",
+          "amount": 200000,
+          "status": "upcoming"
+        },
+        {
+          "turn": 9,
+          "memberId": "m09",
+          "date": "2027-03-31",
+          "amount": 200000,
+          "status": "upcoming"
+        },
+        {
+          "turn": 10,
+          "memberId": "m10",
+          "date": "2027-04-30",
+          "amount": 200000,
+          "status": "upcoming"
+        }
+      ]
+    },
+    {
+      "id": "g-kasuwa-stall-weekly",
+      "name": "Kasuwa Stall Weekly",
+      "organiserId": "m01",
+      "createdInFlow": true,
+      "rules": {
+        "amount": 5000,
+        "currency": "NGN",
+        "frequency": "weekly",
+        "dueDay": "Friday by 6 pm",
+        "size": 8,
+        "payoutAmount": 40000,
+        "payoutOrder": "draw",
+        "lateRule": {
+          "graceDays": 1,
+          "feeAmount": 500,
+          "feeGoesTo": "pot"
+        },
+        "startDate": "2026-11-06",
+        "endDate": "2026-12-25",
+        "changesNeedGroupVote": true
+      },
+      "inviteLink": "adashenmu.app/join/kasuwa-stall-weekly",
+      "invites": [
+        {
+          "name": "Zainab Musa",
+          "status": "joined",
+          "ninVerified": true
+        },
+        {
+          "name": "Aisha Bello",
+          "status": "joined",
+          "ninVerified": true
+        },
+        {
+          "name": "Fatima Yusuf",
+          "status": "joined",
+          "ninVerified": true
+        },
+        {
+          "name": "Hadiza Lawal",
+          "status": "joined",
+          "ninVerified": true
+        },
+        {
+          "name": "Maryam Sani",
+          "status": "invited",
+          "note": "not opened yet"
+        }
+      ],
+      "placesFilled": 5
+    }
+  ],
+  "pendingPayment": {
+    "groupId": "g-kasuwa-atamfa",
+    "cycle": 4,
+    "amount": 20000,
+    "due": "2026-10-28",
+    "methods": [
+      "bankTransfer",
+      "card",
+      "ussd"
+    ],
+    "ussd": {
+      "banks": [
+        "GTBank",
+        "Access",
+        "First Bank",
+        "UBA"
+      ],
+      "selected": "GTBank",
+      "code": "*737*000*5821047#",
+      "fromPhone": "0803 412 7765"
+    },
+    "reference": "ADS-K4-0912"
+  },
+  "latePaymentExample": {
+    "_view": "Member view for Safiya Umar on Fri 30 Oct 2026",
+    "memberId": "m09",
+    "contribution": 20000,
+    "lateFee": 1000,
+    "total": 21000,
+    "dueWas": "2026-10-28",
+    "graceEnded": "2026-10-30",
+    "nextPayout": {
+      "to": "Hadiza Lawal",
+      "date": "2026-10-31"
+    }
+  },
+  "payoutReleasedExample": {
+    "_view": "Hauwa on Mon 30 Nov 2026",
+    "cycle": 5,
+    "amount": 200000,
+    "to": "GTBank •••• 4821",
+    "accountName": "Hauwa Ibrahim",
+    "from": "Kasuwa Atamfa group wallet",
+    "releasedAt": "2026-11-30T09:00",
+    "allPaidOnTime": true
+  },
+  "activity": [
+    {
+      "date": "2026-10-26",
+      "label": "Today · Mon 26 Oct",
+      "items": [
+        {
+          "who": "m01",
+          "title": "You paid · Kasuwa Atamfa",
+          "detail": "USSD · 9:41",
+          "amount": 20000,
+          "state": "confirming"
+        },
+        {
+          "who": "m07",
+          "title": "Rukayya Adamu paid",
+          "detail": "9:12",
+          "amount": 20000,
+          "state": "inThePot"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-25",
+      "label": "Sun 25 Oct",
+      "items": [
+        {
+          "who": "m06",
+          "title": "Maryam Sani paid",
+          "detail": "6:20 pm",
+          "amount": 20000,
+          "state": "inThePot"
+        },
+        {
+          "who": "m08",
+          "title": "Halima Garba paid",
+          "detail": "2:05 pm",
+          "amount": 20000,
+          "state": "inThePot"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-30",
+      "label": "Wed 30 Sep",
+      "items": [
+        {
+          "who": "m04",
+          "title": "Payout to Fatima Yusuf",
+          "detail": "Cycle 3",
+          "amount": 200000,
+          "state": "released"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-24",
+      "label": "Thu 24 Sep",
+      "items": [
+        {
+          "who": "m01",
+          "title": "Your card payment",
+          "detail": "Bank declined",
+          "amount": 20000,
+          "state": "failed"
+        },
+        {
+          "who": "m01",
+          "title": "Money returned to your card",
+          "detail": "Same day",
+          "amount": 20000,
+          "state": "refunded"
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "monthly-market",
+      "label": "Monthly market",
+      "amount": 20000,
+      "frequency": "monthly",
+      "size": 10,
+      "lateRule": {
+        "graceDays": 2,
+        "feeAmount": 1000
+      }
+    },
+    {
+      "id": "weekly-stall",
+      "label": "Weekly stall",
+      "amount": 5000,
+      "frequency": "weekly",
+      "dueDay": "Friday 6 pm",
+      "size": 8,
+      "lateRule": {
+        "graceDays": 1,
+        "feeAmount": 500
+      }
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "name": "Adashenmu design tokens",
+  "version": "1.0",
+  "platform": "mobile, 390 x 844 base",
+  "color": {
+    "ink": {
+      "value": "#0B3D2E",
+      "use": "Headings, app bar, primary text, dark cards (Forest)"
+    },
+    "textMuted": {
+      "value": "#4F5F57",
+      "use": "Secondary text, captions"
+    },
+    "faint": {
+      "value": "#8A968F",
+      "use": "Inactive tab icons, chevrons"
+    },
+    "primary": {
+      "value": "#0F8A5F",
+      "use": "Primary buttons, active tab, progress (Adashe Green)"
+    },
+    "primaryPressed": {
+      "value": "#0B6E4B",
+      "use": "Pressed state; green text on light tints"
+    },
+    "primarySoft": {
+      "value": "#E3F4EC",
+      "use": "Info cards, success tint"
+    },
+    "onDark": {
+      "value": "#2FBF85",
+      "use": "Green text and accents on forest backgrounds"
+    },
+    "forestDeep": {
+      "value": "#072A20",
+      "use": "Panels on forest backgrounds, phone frames"
+    },
+    "accent": {
+      "value": "#F2B33D",
+      "use": "Coin Gold: pot highlights, 'Your turn' chip"
+    },
+    "accentDeep": {
+      "value": "#C98A12",
+      "use": "Coin inner ring, numbers on gold"
+    },
+    "accentSoft": {
+      "value": "#FFF4DB",
+      "use": "Reminder banner, your-turn tile, gentle reminder card"
+    },
+    "clay": {
+      "value": "#C8643B",
+      "use": "Heritage illustration only. Never for a status."
+    },
+    "claySoft": {
+      "value": "#F6E4DA",
+      "use": "Avatar tint"
+    },
+    "surface": {
+      "value": "#FFFFFF",
+      "use": "Cards, sheets"
+    },
+    "background": {
+      "value": "#FAF7F0",
+      "use": "Screen background (Cream)"
+    },
+    "line": {
+      "value": "#E3DDCF",
+      "use": "Card borders, input borders"
+    },
+    "lineSoft": {
+      "value": "#EFEAE0",
+      "use": "Dividers, progress track, segmented control"
+    },
+    "blue": {
+      "value": "#1D4ED8"
+    },
+    "blueSoft": {
+      "value": "#E6EEFF"
+    },
+    "red": {
+      "value": "#B42318"
+    },
+    "redSoft": {
+      "value": "#FDECEA"
+    },
+    "greySoft": {
+      "value": "#EEF0EE"
+    }
+  },
+  "moneyState": {
+    "pending": {
+      "label": "Pending",
+      "text": "#8A5A00",
+      "tint": "#FFF4DB",
+      "icon": "clock",
+      "meaning": "Due, not yet paid"
+    },
+    "confirming": {
+      "label": "Confirming",
+      "text": "#0B6E4B",
+      "tint": "#E3F4EC",
+      "icon": "check",
+      "meaning": "Member has sent the money; bank confirming (renamed from 'Paid' after testing)"
+    },
+    "inThePot": {
+      "label": "In the pot",
+      "text": "#0B6E4B",
+      "tint": "#E3F4EC",
+      "icon": "pot",
+      "meaning": "Confirmed in the group wallet"
+    },
+    "released": {
+      "label": "Released",
+      "text": "#1D4ED8",
+      "tint": "#E6EEFF",
+      "icon": "arrow-up-right",
+      "meaning": "Paid out to this turn's member"
+    },
+    "late": {
+      "label": "Late",
+      "text": "#B42318",
+      "tint": "#FDECEA",
+      "icon": "alert",
+      "meaning": "Grace period ended, still unpaid"
+    },
+    "failed": {
+      "label": "Failed",
+      "text": "#B42318",
+      "tint": "#FDECEA",
+      "icon": "x",
+      "meaning": "A payment attempt did not go through"
+    },
+    "refunded": {
+      "label": "Refunded",
+      "text": "#4F5F57",
+      "tint": "#EEF0EE",
+      "icon": "undo",
+      "meaning": "Money from a failed attempt returned"
+    }
+  },
+  "turnChip": {
+    "yourTurn": {
+      "label": "Your turn",
+      "bg": "#F2B33D",
+      "text": "#0B3D2E"
+    },
+    "next": {
+      "label": "Next",
+      "bg": "#E3F4EC",
+      "text": "#0B6E4B"
+    },
+    "collected": {
+      "label": "Collected",
+      "bg": "#EEF0EE",
+      "text": "#4F5F57",
+      "icon": "check"
+    },
+    "upcoming": {
+      "label": "Upcoming",
+      "bg": "#FFFFFF",
+      "text": "#4F5F57",
+      "border": "#E3DDCF"
+    }
+  },
+  "font": {
+    "heading": "Manrope",
+    "body": "Inter",
+    "googleFonts": "https://fonts.google.com/specimen/Manrope , https://fonts.google.com/specimen/Inter"
+  },
+  "typography": {
+    "display": {
+      "font": "Manrope",
+      "weight": 800,
+      "size": 32,
+      "lineHeight": 40,
+      "letterSpacing": "-2%",
+      "use": "Pot total, big amounts"
+    },
+    "h1": {
+      "font": "Manrope",
+      "weight": 700,
+      "size": 24,
+      "lineHeight": 32,
+      "letterSpacing": "-1%"
+    },
+    "h2": {
+      "font": "Manrope",
+      "weight": 700,
+      "size": 20,
+      "lineHeight": 28,
+      "letterSpacing": "-0.5%",
+      "use": "Top bar titles"
+    },
+    "h3": {
+      "font": "Manrope",
+      "weight": 700,
+      "size": 16,
+      "lineHeight": 22
+    },
+    "amountL": {
+      "font": "Manrope",
+      "weight": 800,
+      "size": 24,
+      "lineHeight": 32,
+      "letterSpacing": "-1%"
+    },
+    "amount": {
+      "font": "Manrope",
+      "weight": 700,
+      "size": 18,
+      "lineHeight": 24
+    },
+    "body": {
+      "font": "Inter",
+      "weight": 400,
+      "size": 16,
+      "lineHeight": 24
+    },
+    "bodySmall": {
+      "font": "Inter",
+      "weight": 400,
+      "size": 14,
+      "lineHeight": 20
+    },
+    "label": {
+      "font": "Inter",
+      "weight": 600,
+      "size": 14,
+      "lineHeight": 20
+    },
+    "caption": {
+      "font": "Inter",
+      "weight": 500,
+      "size": 12,
+      "lineHeight": 16
+    },
+    "overline": {
+      "font": "Inter",
+      "weight": 600,
+      "size": 11,
+      "lineHeight": 16,
+      "letterSpacing": "8%",
+      "transform": "uppercase"
+    }
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    48
+  ],
+  "screenSideMargin": 20,
+  "radius": {
+    "input": 10,
+    "chip": 8,
+    "iconTile": 12,
+    "button": 14,
+    "card": 16,
+    "sheet": 20,
+    "pill": 999
+  },
+  "size": {
+    "touchTargetMin": 48,
+    "buttonHeight": 52,
+    "topBarHeight": 56,
+    "tabBarHeight": 92,
+    "statusBarHeight": 44,
+    "avatar": 40,
+    "iconDefault": 24
+  },
+  "shadow": {
+    "card": "0 2px 8px rgba(10,61,46,0.06)",
+    "sheet": "0 -6px 24px rgba(10,61,46,0.14)"
+  },
+  "rules": [
+    "Naira amounts always show the ₦ sign and thousands separators (₦20,000). Never '20k'.",
+    "Every money state shows a word and an icon, never colour alone.",
+    "Clay is for illustration only.",
+    "Text contrast at least 4.5:1."
+  ]
+}

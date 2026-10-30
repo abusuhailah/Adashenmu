@@ -1,0 +1,6 @@
+{
+  "name": "Adashenmu — Group Savings App",
+  "description": "A mobile-first web app for rotating savings groups (adashe) in Nigeria with NIN-verified members, bank-held group wallet, transparent ledger, and automated payout calendar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
