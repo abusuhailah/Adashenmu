@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInAnonymously,
   signOut as fbSignOut,
   onAuthStateChanged,
   RecaptchaVerifier,
@@ -35,7 +36,20 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 // Authentication instance
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-export { signInWithPopup, fbSignOut, onAuthStateChanged, RecaptchaVerifier, signInWithPhoneNumber };
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+});
+
+export {
+  signInWithPopup,
+  signInAnonymously,
+  fbSignOut,
+  onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+};
 
 // Firestore with custom database ID from config
 export const db = firebaseConfig.firestoreDatabaseId

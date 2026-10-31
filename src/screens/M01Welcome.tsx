@@ -5,7 +5,7 @@ import { StatusBar } from '../components/common/StatusBar';
 import { Icon } from '../components/common/Icon';
 
 export const M01Welcome: React.FC = () => {
-  const { navigate, signInWithGoogle, liveUserProfile, groups, setJoinModalOpen } = useApp();
+  const { navigate, signInWithGoogle, liveUserProfile } = useApp();
   const { language, setLanguage, t } = useLanguage();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -153,18 +153,6 @@ export const M01Welcome: React.FC = () => {
                   : language === 'ha'
                   ? 'Ci gaba da Gmail / Google'
                   : 'Continue with Google / Gmail'}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setJoinModalOpen(true)}
-              className="w-full text-center py-2 text-[13px] font-semibold text-[#2FBF85] hover:underline cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span>
-                {language === 'ha'
-                  ? 'Kuna da lambar gayyata daga mai shirya? Shigar da ita'
-                  : 'Have an invite code from an organiser? Enter code'}
               </span>
             </button>
           </>

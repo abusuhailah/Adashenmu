@@ -37,7 +37,6 @@ const AppContent: React.FC = () => {
     isJoinModalOpen,
     setJoinModalOpen,
   } = useApp();
-  const { language, setLanguage } = useLanguage();
 
   const renderScreen = () => {
     switch (currentRoute) {
@@ -94,20 +93,7 @@ const AppContent: React.FC = () => {
     <DeviceFrame>
       {renderScreen()}
 
-      {/* Floating Language Switcher on mobile */}
-      <div className="md:hidden fixed bottom-24 right-4 z-40">
-        <button
-          type="button"
-          onClick={() => {
-            const nextLang = language === 'en' ? 'ha' : 'en';
-            setLanguage(nextLang);
-          }}
-          title="Switch Language"
-          className="w-10 h-10 rounded-full bg-white text-[#0B3D2E] shadow-md flex items-center justify-center border border-[#E3DDCF] active:scale-95 text-[12px] font-bold"
-        >
-          {language === 'ha' ? 'HA' : 'EN'}
-        </button>
-      </div>
+
 
       {/* Toast Notification Container */}
       {toasts.length > 0 && (
