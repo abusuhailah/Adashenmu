@@ -17,6 +17,9 @@ export const M06GroupLedger: React.FC = () => {
     confirmMemberPayment,
     releaseMemberPayout,
     confirmPayoutReceived,
+    requestGroupDeletion,
+    approveGroupDeletion,
+    executeGroupDeletion,
     groupActiveTab,
     setGroupActiveTab,
     showToast,
@@ -128,6 +131,52 @@ export const M06GroupLedger: React.FC = () => {
     }
   };
 
+  const deletionReq = targetGroup.deletionRequest;
+  const acceptedMemberIds = deletionReq?.acceptedMemberIds || [];
+  const acceptedCount = acceptedMemberIds.length;
+  const totalMembersRequired = deletionReq?.totalMembersCount || members.length || 1;
+  const hasCurrentUserAccepted = !!(deletionReq && acceptedMemberIds.includes(currentUser.id));
+  const isAllApproved = !!(deletionReq && acceptedCount >= totalMembersRequired);
+
+  const handleRequestDeletion = async () => {
+    const confirmMsg =
+      language === 'ha'
+        ? 'Kuna so ku tura buƙatar rufe ƙungiya da goge ta zuwa ga dukkan mambobi?'
+        : 'Send group closure and deletion request to all members?';
+    if (window.confirm(confirmMsg)) {
+      setIsProcessing(true);
+      try {
+        await requestGroupDeletion(targetGroup.id);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  const handleApproveDeletion = async () => {
+    setIsProcessing(true);
+    try {
+      await approveGroupDeletion(targetGroup.id);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleExecuteDeletion = async () => {
+    const confirmMsg =
+      language === 'ha'
+        ? 'Dukkan mambobi sun amince. Kuna tabbatar da goge wannan ƙungiya kwata-kwata?'
+        : 'All members have approved! Are you sure you want to permanently delete this group?';
+    if (window.confirm(confirmMsg)) {
+      setIsProcessing(true);
+      try {
+        await executeGroupDeletion(targetGroup.id);
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+  };
+
   return (
     <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
       <div className="flex-1 overflow-y-auto hide-scrollbar">
@@ -137,6 +186,101 @@ export const M06GroupLedger: React.FC = () => {
           onBack={() => navigate('/groups')}
           showBack={true}
         />
+
+        {/* GROUP DELETION CONSENT BANNER */}
+        {deletionReq && (
+          <div className="mx-5 my-2 p-4 rounded-[16px] bg-[#FEF3F2] border-2 border-[#D92D20] shadow-sm space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#D92D20]">
+                <Icon name="alert" size={18} strokeWidth={2.4} />
+                <span className="font-heading font-bold text-[14px]">
+                  {language === 'ha' ? 'Buƙatar Goge Ƙungiya' : 'Group Deletion Requested'}
+                </span>
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FEE4E2] text-[#B42318]">
+                {acceptedCount} / {totalMembersRequired} Accepted
+              </span>
+            </div>
+
+            <p className="text-[12px] text-[#4F5F57] leading-relaxed">
+              {language === 'ha'
+                ? 'Mai shirya ya nemi a rufe wannan ƙungiya domin an kammala zangunan adashe. Dukkan mambobi dole su amince kafin a goge ƙungiyar.'
+                : 'The organizer has requested group closure. Unanimous consent required: all members must accept before this group can be deleted.'}
+            </p>
+
+            {/* Member View: Approve button */}
+            {!isOrganiser && (
+              <div>
+                {hasCurrentUserAccepted ? (
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-[#0F8A5F] bg-[#E3F4EC] p-2.5 rounded-[10px]">
+                    <Icon name="check" size={15} strokeWidth={2.5} />
+                    <span>
+                      {language === 'ha'
+                        ? 'Kun riga kun amince da goge ƙungiya. Ana jiran sauran mambobi.'
+                        : 'You have approved group deletion. Waiting for remaining members.'}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleApproveDeletion}
+                    className="w-full h-10 rounded-[10px] bg-[#D92D20] text-white font-bold text-[13px] shadow-sm hover:brightness-105 cursor-pointer disabled:opacity-50"
+                  >
+                    {isProcessing
+                      ? 'Approving…'
+                      : language === 'ha'
+                      ? 'Na Amince da Rufe / Goge Ƙungiyar'
+                      : 'I Confirm & Accept Group Deletion'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Organizer View: Progress & Delete Button */}
+            {isOrganiser && (
+              <div className="space-y-2 pt-1">
+                {isAllApproved ? (
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-[#0B6E4B] flex items-center gap-1.5">
+                      <Icon name="check" size={14} strokeWidth={2.5} />
+                      {language === 'ha'
+                        ? 'Dukkan mambobi sun amince! Maɓallin gogewa yanzu yana aiki.'
+                        : 'All members have approved! You can now permanently delete this group.'}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={handleExecuteDeletion}
+                      className="w-full h-11 rounded-[12px] bg-[#D92D20] hover:bg-[#B42318] text-white font-bold text-[14px] shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Icon name="trash" size={16} strokeWidth={2.5} />
+                      <span>{isProcessing ? 'Deleting Group…' : 'Permanently Delete Group'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="w-full h-2 rounded-full bg-[#FEE4E2] overflow-hidden">
+                      <div
+                        style={{ width: `${Math.round((acceptedCount / totalMembersRequired) * 100)}%` }}
+                        className="h-full bg-[#D92D20] rounded-full transition-all duration-300"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={true}
+                      className="w-full h-10 rounded-[10px] bg-[#F2F4F7] text-[#98A2B3] font-bold text-[13px] border border-[#EAECF0] cursor-not-allowed"
+                    >
+                      {language === 'ha'
+                        ? `Ana Jiran Mambobi (${acceptedCount}/${totalMembersRequired})`
+                        : `Awaiting Member Consent (${acceptedCount}/${totalMembersRequired})`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Segmented control tabs */}
         <div className="px-5 py-2">
@@ -245,6 +389,58 @@ export const M06GroupLedger: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Organiser Group Lifecycle Management */}
+            {isOrganiser && (
+              <div className="bg-white rounded-[16px] p-5 border border-[#E3DDCF] shadow-sm space-y-3">
+                <div className="flex items-center gap-2">
+                  <Icon name="shield" size={18} className="text-[#0B3D2E]" />
+                  <h4 className="font-heading font-bold text-[15px] text-[#0B3D2E]">
+                    {language === 'ha' ? 'Rufe da Goge Ƙungiya' : 'Group Closure & Deletion'}
+                  </h4>
+                </div>
+
+                <p className="text-[12px] text-[#4F5F57] leading-relaxed">
+                  {language === 'ha'
+                    ? 'Bayan an kammala dukkan zangunan adashe ko lokacin rufe ƙungiya, za ku iya aike da buƙatar gogewa. Dukkan mambobi dole su amince kafin maɓallin gogewa ya kunna.'
+                    : 'After all rotation cycles are completed or when closing this group, you can initiate a deletion request. All members must approve before the group can be permanently removed.'}
+                </p>
+
+                {!deletionReq ? (
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleRequestDeletion}
+                    className="w-full h-11 rounded-[12px] bg-[#FEF3F2] border border-[#FECDCA] text-[#D92D20] font-bold text-[13px] hover:bg-[#D92D20] hover:text-white transition-colors cursor-pointer"
+                  >
+                    {language === 'ha' ? 'Aika Buƙatar Goge Ƙungiya' : 'Request Group Closure & Deletion'}
+                  </button>
+                ) : (
+                  <div className="p-3 rounded-[12px] bg-[#FAF7F0] border border-[#E3DDCF] text-[12px] space-y-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Approval Progress:</span>
+                      <span className="text-[#D92D20]">{acceptedCount} of {totalMembersRequired} members</span>
+                    </div>
+                    {isAllApproved ? (
+                      <button
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={handleExecuteDeletion}
+                        className="w-full h-11 rounded-[12px] bg-[#D92D20] text-white font-bold text-[13px] cursor-pointer shadow-sm hover:brightness-105"
+                      >
+                        {isProcessing ? 'Deleting…' : 'Permanently Delete Group'}
+                      </button>
+                    ) : (
+                      <span className="text-[#4F5F57] block italic">
+                        {language === 'ha'
+                          ? 'Ana jiran sauran mambobi su amince kafin a goge.'
+                          : 'Waiting for all members to approve before deletion button activates.'}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="button"

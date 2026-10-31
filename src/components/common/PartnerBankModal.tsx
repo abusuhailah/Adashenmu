@@ -82,12 +82,14 @@ export const PartnerBankModal: React.FC<PartnerBankModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <h3 className="font-heading font-bold text-[17px] text-[#0B3D2E]">
-                {t('partnerBankSetup')}
+                {currentUser.role === 'Organiser'
+                  ? language === 'ha' ? 'Asusun Karɓar Kuɗi na Mai Shirya' : 'Organiser Receiving Account'
+                  : language === 'ha' ? 'Asusun Karɓar Rabo na Mamba' : 'Member Payout Account'}
               </h3>
               <p className="text-[12px] text-[#4F5F57]">
-                {language === 'ha'
-                  ? 'CBN da Inshorar NDIC ta ba da lasisi'
-                  : 'CBN Licensed & NDIC Insured Partner'}
+                {currentUser.role === 'Organiser'
+                  ? language === 'ha' ? 'Mambobi za su tura gudunmawa zuwa wannan asusun' : 'Members will transfer contributions to this account'
+                  : language === 'ha' ? 'Mai shirya zai tura muku kuɗin rabo zuwa nan' : 'Organiser will transfer your pot payouts to this account'}
               </p>
             </div>
           </div>
@@ -167,13 +169,13 @@ export const PartnerBankModal: React.FC<PartnerBankModalProps> = ({ isOpen, onCl
             <div className="text-[12px] text-[#0B3D2E] leading-snug">
               <span className="font-bold block">
                 {language === 'ha'
-                  ? 'Kariya ta Asusun Bankin Abokin Tarayya'
-                  : 'NDIC Deposit Insurance Guarantee'}
+                  ? 'Biyan Kuɗi Kai Tsaye Cikin Amana'
+                  : 'Direct & Transparent Transfers'}
               </span>
               <span className="text-[#0B6E4B]">
                 {language === 'ha'
-                  ? 'Kudaden ƙungiya suna cikin asusun banki mai lasisi, ba a hannun mutum guda ba. Za a saki kuɗin rabon kai tsaye ga wannan asusun a ranar rabon.'
-                  : 'Group funds are held securely in escrow by the licensed partner bank. Payouts are automatically routed to this verified account on payout dates.'}
+                  ? 'Duk wani biya yana tafiya kai tsaye ne tsakanin asusun banki tare da ɗora shaidar biya da tabbatarwa a fili.'
+                  : 'All contributions and payouts transfer directly between trusted Nigerian bank accounts with receipt proof and instant confirmation.'}
               </span>
             </div>
           </div>

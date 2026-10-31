@@ -16,6 +16,11 @@ export const M18Profile: React.FC = () => {
     isNinVerified,
     partnerBank,
     setPartnerBankModalOpen,
+    userRole,
+    setUserRole,
+    setRoleModalOpen,
+    memberPaymentHistory,
+    setPaymentHistoryModalOpen,
     signOut,
     showToast,
   } = useApp();
@@ -75,7 +80,7 @@ export const M18Profile: React.FC = () => {
 
           {/* Settings list */}
           <div className="bg-white rounded-[16px] border border-[#E3DDCF] shadow-sm divide-y divide-[#EFEAE0] overflow-hidden">
-            {/* Payout account / Partner Bank */}
+            {/* Bank Account Settings */}
             <div
               onClick={() => setPartnerBankModalOpen(true)}
               className="p-3.5 flex items-center justify-between hover:bg-[#FAF7F0] cursor-pointer transition-colors"
@@ -86,43 +91,79 @@ export const M18Profile: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[14px] font-semibold text-[#0B3D2E] block">
-                    {t('partnerBankSetup')}
+                    {userRole === 'organizer' || currentUser.role === 'Organiser'
+                      ? language === 'ha' ? 'Asusun Karɓar Kuɗi na Mai Shirya' : 'Organiser Receiving Account'
+                      : language === 'ha' ? 'Asusun Karɓar Rabo na Mamba' : 'Member Payout Account'}
                   </span>
                   <span className="text-[12px] text-[#4F5F57] block mt-0.5">
                     {partnerBank
                       ? `${partnerBank.bankName} •••• ${partnerBank.accountNumber.slice(-4)}`
-                      : 'Access Bank (CBN Licensed)'}
+                      : 'Add your bank details'}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-bold text-[#0F8A5F] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
-                  {partnerBank?.isVerified ? 'VERIFIED' : 'SETUP'}
+                  {partnerBank?.accountNumber ? 'ACTIVE' : 'SETUP'}
                 </span>
                 <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
               </div>
             </div>
 
-            {/* Google Account & Role */}
-            <div className="p-3.5 flex items-center justify-between">
+            {/* Member Payment History & Receipts */}
+            <div
+              onClick={() => setPaymentHistoryModalOpen(true)}
+              className="p-3.5 flex items-center justify-between hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-[#E3F4EC] text-[#0F8A5F] flex items-center justify-center shrink-0">
+                  <Icon name="wallet" size={18} strokeWidth={2.2} />
+                </div>
+                <div>
+                  <span className="text-[14px] font-semibold text-[#0B3D2E] block">
+                    {language === 'ha' ? 'Tarihin Biya & Shaidun Biyan Kuɗi' : 'Payment History & Receipts'}
+                  </span>
+                  <span className="text-[12px] text-[#4F5F57] block mt-0.5">
+                    {memberPaymentHistory.length > 0
+                      ? `${memberPaymentHistory.length} ${language === 'ha' ? 'bayanan biya da shaidu' : 'payments & attached proofs'}`
+                      : language === 'ha' ? 'Duba shaidun biya da kuka tura' : 'View your transfer proofs & receipts'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-[#0B3D2E] bg-[#FAF7F0] border border-[#E3DDCF] px-2 py-0.5 rounded-full">
+                  {memberPaymentHistory.length}
+                </span>
+                <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
+              </div>
+            </div>
+
+            {/* Role Switcher: Organiser vs Member */}
+            <div
+              onClick={() => setRoleModalOpen(true)}
+              className="p-3.5 flex items-center justify-between hover:bg-[#FAF7F0] cursor-pointer transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-[10px] bg-[#FAF7F0] text-[#0F8A5F] flex items-center justify-center shrink-0">
                   <Icon name="user" size={18} />
                 </div>
                 <div>
                   <span className="text-[14px] font-semibold text-[#0B3D2E] block">
-                    {language === 'ha' ? 'Halin Aiki & Alhaki' : 'Account & Responsibilities'}
+                    {language === 'ha' ? 'Sauya Matsayi (Organiser / Member)' : 'Switch Role (Organiser / Member)'}
                   </span>
                   <span className="text-[12px] text-[#4F5F57] block mt-0.5">
-                    {groups.some((g) => g.organiserId === currentUser.id)
-                      ? language === 'ha' ? 'Mai Shirya Ƙungiya & Mamba' : 'Group Organiser & Member'
-                      : language === 'ha' ? 'Mamba Mai Aiki' : 'Active Group Member'}
+                    {userRole === 'organizer' || currentUser.role === 'Organiser'
+                      ? language === 'ha' ? 'Mai Shirya Ƙungiya (Organiser Mode)' : 'Group Organiser (Create & manage)'
+                      : language === 'ha' ? 'Mamba (Member Mode) · Danna domin zama mai shirya' : 'Group Member · Tap to become an organiser'}
                   </span>
                 </div>
               </div>
-              <span className="text-[11px] font-bold text-[#0F8A5F] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
-                ACTIVE
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-[#0B6E4B] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
+                  {userRole === 'organizer' || currentUser.role === 'Organiser' ? 'ORGANISER' : 'MEMBER'}
+                </span>
+                <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
+              </div>
             </div>
 
             {/* Language */}

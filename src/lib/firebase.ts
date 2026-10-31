@@ -26,6 +26,7 @@ import {
   increment,
   deleteField,
   getDocs,
+  deleteDoc,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
@@ -38,6 +39,7 @@ import {
   PaymentProof,
   PayoutTurn,
   TurnStatus,
+  GroupDeletionRequest,
 } from '../data/types';
 
 // Initialize Firebase App singleton
@@ -85,6 +87,7 @@ export interface LiveUserProfile {
     linkedAt: string;
   } | null;
   createdAt: string;
+  primaryRole?: 'organizer' | 'member';
 }
 
 export interface LiveGroupData {
@@ -94,6 +97,7 @@ export interface LiveGroupData {
   organiserId: string;
   organiserName: string;
   memberIds: string[];
+  deletionRequest?: GroupDeletionRequest;
   rules: {
     amount: number;
     currency: 'NGN';
@@ -818,3 +822,104 @@ export async function confirmPayoutReceivedReal(
     timestamp: new Date().toISOString(),
   });
 }
+
+/**
+ * Save user's primary chosen role ('organizer' | 'member')
+ */
+export async function saveUserPrimaryRole(userId: string, role: 'organizer' | 'member') {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { primaryRole: role });
+  } catch (err) {
+    console.warn('Could not save primaryRole to firestore:', err);
+  }
+}
+
+/**
+ * Organiser requests to delete/close the group with member consent.
+ */
+export async function requestGroupDeletionReal(
+  groupId: string,
+  organiser: LiveUserProfile,
+  totalMembersCount: number
+) {
+  const groupRef = doc(db, 'groups', groupId);
+  const deletionRequest: GroupDeletionRequest = {
+    requestedAt: new Date().toISOString(),
+    requestedBy: organiser.id,
+    status: 'pending',
+    acceptedMemberIds: [organiser.id],
+    totalMembersCount,
+  };
+
+  await updateDoc(groupRef, { deletionRequest });
+
+  await addDoc(collection(db, 'groups', groupId, 'activities'), {
+    groupId,
+    who: organiser.id,
+    whoName: organiser.displayName,
+    title: 'Group Closure Requested',
+    detail: `Organiser ${organiser.displayName} requested group deletion. All members must confirm approval.`,
+    amount: 0,
+    state: 'confirming',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Group member approves deletion request
+ */
+export async function approveGroupDeletionReal(
+  groupId: string,
+  member: LiveUserProfile
+) {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnap = await getDoc(groupRef);
+  if (!groupSnap.exists()) return;
+
+  const data = groupSnap.data() as LiveGroupData;
+  const currentReq = data.deletionRequest;
+  if (!currentReq) return;
+
+  const existingAccepted = currentReq.acceptedMemberIds || [];
+  const updatedAccepted = existingAccepted.includes(member.id)
+    ? existingAccepted
+    : [...existingAccepted, member.id];
+
+  const allAccepted = updatedAccepted.length >= (data.memberIds?.length || 1);
+
+  const updatedReq: GroupDeletionRequest = {
+    ...currentReq,
+    acceptedMemberIds: updatedAccepted,
+    status: allAccepted ? 'approved' : 'pending',
+  };
+
+  await updateDoc(groupRef, { deletionRequest: updatedReq });
+
+  await addDoc(collection(db, 'groups', groupId, 'activities'), {
+    groupId,
+    who: member.id,
+    whoName: member.displayName,
+    title: 'Closure Consent Approved',
+    detail: `${member.displayName} approved the group closure request (${updatedAccepted.length} of ${data.memberIds?.length || 1} confirmed).`,
+    amount: 0,
+    state: 'released',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Organiser executes deletion once all members have approved
+ */
+export async function executeGroupDeletionReal(groupId: string, inviteCode?: string) {
+  const groupRef = doc(db, 'groups', groupId);
+  await deleteDoc(groupRef);
+
+  if (inviteCode) {
+    try {
+      const inviteRef = doc(db, 'invites', inviteCode.toUpperCase());
+      await deleteDoc(inviteRef);
+    } catch {}
+  }
+}
+

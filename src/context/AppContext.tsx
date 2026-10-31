@@ -10,6 +10,8 @@ import {
   PayoutTurn,
   TurnStatus,
   SystemNotification,
+  MemberPaymentHistoryItem,
+  GroupDeletionRequest,
 } from '../data/types';
 import {
   auth,
@@ -29,6 +31,10 @@ import {
   releasePayoutReal,
   confirmPayoutReceivedReal,
   fetchInvitePreview,
+  saveUserPrimaryRole,
+  requestGroupDeletionReal,
+  approveGroupDeletionReal,
+  executeGroupDeletionReal,
   LiveUserProfile,
   LiveGroupData,
 } from '../lib/firebase';
@@ -191,6 +197,22 @@ interface AppContextType {
   setNinVerified: (v: boolean) => void;
   verifyNin: (nin: string, fullName: string) => Promise<void>;
 
+  // Role Selection
+  userRole: 'organizer' | 'member' | null;
+  setUserRole: (role: 'organizer' | 'member') => void;
+  isRoleModalOpen: boolean;
+  setRoleModalOpen: (open: boolean) => void;
+
+  // Member Payment History
+  memberPaymentHistory: MemberPaymentHistoryItem[];
+  isPaymentHistoryModalOpen: boolean;
+  setPaymentHistoryModalOpen: (open: boolean) => void;
+
+  // Group Deletion Workflow
+  requestGroupDeletion: (groupId: string) => Promise<void>;
+  approveGroupDeletion: (groupId: string) => Promise<void>;
+  executeGroupDeletion: (groupId: string) => Promise<void>;
+
   // UI helpers
   toasts: ToastMessage[];
   showToast: (text: string, type?: 'success' | 'info' | 'alert') => void;
@@ -322,6 +344,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const members: Member[] = activeGroup?.members || [];
 
+  // Role selection state: 'organizer' | 'member' | null
+  const [userRole, setUserRoleState] = useState<'organizer' | 'member' | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('adashenmu_user_role');
+      if (stored === 'organizer' || stored === 'member') return stored;
+    }
+    return null;
+  });
+  const [isRoleModalOpen, setRoleModalOpen] = useState(false);
+
+  // Member Payment History state
+  const [memberPaymentHistory, setMemberPaymentHistory] = useState<MemberPaymentHistoryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('adashenmu_payment_history');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+  const [isPaymentHistoryModalOpen, setPaymentHistoryModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('adashenmu_payment_history', JSON.stringify(memberPaymentHistory));
+      } catch {}
+    }
+  }, [memberPaymentHistory]);
+
+  const setUserRole = (role: 'organizer' | 'member') => {
+    setUserRoleState(role);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('adashenmu_user_role', role);
+    }
+    if (liveUserProfile?.id) {
+      saveUserPrimaryRole(liveUserProfile.id, role);
+    }
+    showToast(role === 'organizer' ? 'Organiser mode enabled' : 'Member mode enabled', 'success');
+  };
+
   // Active user details
   const isOrganiserOfAny = groups.some(
     (g) => g.organiserId === (liveUserProfile?.id || 'user-suhailah')
@@ -335,7 +398,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     initials: liveUserProfile?.initials || 'SM',
     avatarColor: (liveUserProfile?.avatarColor as any) || ('green' as const),
     ninVerified: true,
-    role: (activeGroup?.organiserId === (liveUserProfile?.id || 'user-suhailah') ? 'Organiser' : isOrganiserOfAny ? 'Organiser' : 'Member') as 'Organiser' | 'Member',
+    role: (userRole
+      ? userRole === 'organizer'
+        ? 'Organiser'
+        : 'Member'
+      : activeGroup?.organiserId === (liveUserProfile?.id || 'user-suhailah')
+      ? 'Organiser'
+      : isOrganiserOfAny
+      ? 'Organiser'
+      : 'Member') as 'Organiser' | 'Member',
   };
 
   // Group metrics dynamically computed from active group
@@ -354,7 +425,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('full');
   const [customInstallmentAmount, setCustomInstallmentAmount] = useState<number>(5000);
 
-  // Payment details
+  // Payment details - Bank Transfer only
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'bankTransfer' | 'card' | 'ussd'>('bankTransfer');
   const [selectedUssdBank, setSelectedUssdBank] = useState<string>('GTBank');
 
@@ -554,6 +625,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         localStorage.setItem('adashenmu_user_session', JSON.stringify(profile));
       } catch {}
+      const storedRole = localStorage.getItem('adashenmu_user_role');
+      if (!storedRole && !userRole) {
+        setRoleModalOpen(true);
+      }
       showToast(`Welcome, ${profile.displayName}!`, 'success');
       navigate('/home');
       return profile;
@@ -593,6 +668,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         localStorage.setItem('adashenmu_user_session', JSON.stringify(profile));
       } catch {}
+      const storedRole = localStorage.getItem('adashenmu_user_role');
+      if (!storedRole && !userRole) {
+        setRoleModalOpen(true);
+      }
       showToast(`Welcome, Suhailah! Signed in with ${email}`, 'success');
       navigate('/home');
       return profile;
@@ -817,7 +896,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           {
             who: organiserProfile.id,
             title: `Group created: ${newGroup.name}`,
-            detail: `Target: ₦${(newGroup.rules.amount * newGroup.rules.size).toLocaleString('en-NG')} · ${newGroup.rules.size} members · Receiving at ${newGroup.organiserAccount?.bankName || 'Partner Bank'}`,
+            detail: `Target: ₦${(newGroup.rules.amount * newGroup.rules.size).toLocaleString('en-NG')} · ${newGroup.rules.size} members · Receiving at ${newGroup.organiserAccount?.bankName || 'Organizer Bank Account'}`,
             amount: newGroup.rules.amount * newGroup.rules.size,
             state: 'pending',
             timestamp: new Date().toISOString(),
@@ -1015,6 +1094,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       actionRoute: `/groups/${groupId}/ledger`,
     };
 
+    // Record in member payment history
+    const historyItem: MemberPaymentHistoryItem = {
+      id: 'pay-' + Date.now(),
+      groupId,
+      groupName: targetGroup?.name || 'Savings Group',
+      amount,
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      state: 'confirming',
+      proof,
+    };
+    setMemberPaymentHistory((prev) => [historyItem, ...prev]);
+
     setNotifications((prev) => [notif, ...prev]);
     showToast(`Payment of ₦${amount.toLocaleString()} submitted! Waiting for organiser to confirm.`, 'success');
   };
@@ -1117,6 +1208,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       actionRoute: `/groups/${groupId}/ledger`,
     };
     setNotifications((prev) => [notif, ...prev]);
+
+    // Update in payment history
+    setMemberPaymentHistory((prev) =>
+      prev.map((item) =>
+        item.groupId === groupId && item.state === 'confirming'
+          ? { ...item, state: 'inThePot' as MoneyState }
+          : item
+      )
+    );
 
     showToast(`Confirmed payment for ${memberName}!`, 'success');
   };
@@ -1269,6 +1369,113 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     showToast('Payout receipt confirmed! Thank you.', 'success');
   };
 
+  // Group Deletion Workflow
+  const requestGroupDeletion = async (groupId: string) => {
+    const userProfile: LiveUserProfile = liveUserProfile || {
+      id: currentUser.id,
+      displayName: currentUser.name,
+      phone: currentUser.phone,
+      initials: currentUser.initials,
+      avatarColor: currentUser.avatarColor,
+      ninVerified: true,
+      createdAt: new Date().toISOString(),
+    };
+    const targetGroupObj = groups.find((g) => g.id === groupId);
+    const totalMembers = targetGroupObj?.members?.length || 1;
+
+    try {
+      await requestGroupDeletionReal(groupId, userProfile, totalMembers);
+    } catch (err) {
+      console.warn('requestGroupDeletion error:', err);
+    }
+
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id === groupId) {
+          const req: GroupDeletionRequest = {
+            status: 'pending',
+            requestedAt: new Date().toISOString(),
+            requestedBy: userProfile.id,
+            totalMembersCount: g.members?.length || 1,
+            acceptedMemberIds: [userProfile.id],
+          };
+          return { ...g, deletionRequest: req };
+        }
+        return g;
+      })
+    );
+
+    const notif: SystemNotification = {
+      id: `del-req-${Date.now()}`,
+      groupId,
+      groupName: activeGroup?.name || 'Savings Group',
+      title: 'Group Deletion Requested',
+      message: 'The organizer has initiated group closure. All members must accept before deletion is finalized.',
+      timestamp: new Date().toISOString(),
+      type: 'confirmation',
+      read: false,
+      actionRoute: `/groups/${groupId}/rules`,
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    showToast('Group deletion request sent to all members.', 'info');
+  };
+
+  const approveGroupDeletion = async (groupId: string) => {
+    const userProfile: LiveUserProfile = liveUserProfile || {
+      id: currentUser.id,
+      displayName: currentUser.name,
+      phone: currentUser.phone,
+      initials: currentUser.initials,
+      avatarColor: currentUser.avatarColor,
+      ninVerified: true,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      await approveGroupDeletionReal(groupId, userProfile);
+    } catch (err) {
+      console.warn('approveGroupDeletion error:', err);
+    }
+
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id === groupId && g.deletionRequest) {
+          const currentAccepted = g.deletionRequest.acceptedMemberIds || [];
+          const updatedAccepted = currentAccepted.includes(userProfile.id)
+            ? currentAccepted
+            : [...currentAccepted, userProfile.id];
+          const allAccepted = updatedAccepted.length >= (g.members?.length || 1);
+          return {
+            ...g,
+            deletionRequest: {
+              ...g.deletionRequest,
+              acceptedMemberIds: updatedAccepted,
+              status: (allAccepted ? 'approved' : 'pending') as 'approved' | 'pending',
+            },
+          };
+        }
+        return g;
+      })
+    );
+
+    showToast('You approved the group closure & deletion.', 'success');
+  };
+
+  const executeGroupDeletion = async (groupId: string) => {
+    try {
+      await executeGroupDeletionReal(groupId);
+    } catch (err) {
+      console.warn('executeGroupDeletion error:', err);
+    }
+
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    if (selectedGroupId === groupId) {
+      setSelectedGroupId(null);
+    }
+    showToast('Group has been successfully deleted.', 'success');
+    navigate('/home');
+  };
+
   const startPaymentSimulation = (amountOverride?: number) => {
     const amountToPay = amountOverride !== undefined ? amountOverride : currentPaymentAmount;
     if (activeGroup?.id) {
@@ -1350,6 +1557,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isNinVerified,
         setNinVerified,
         verifyNin,
+        userRole,
+        setUserRole,
+        isRoleModalOpen,
+        setRoleModalOpen,
+        memberPaymentHistory,
+        isPaymentHistoryModalOpen,
+        setPaymentHistoryModalOpen,
+        requestGroupDeletion,
+        approveGroupDeletion,
+        executeGroupDeletion,
         toasts,
         showToast,
         removeToast,

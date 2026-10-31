@@ -4,6 +4,8 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { DeviceFrame } from './components/common/DeviceFrame';
 import { PartnerBankModal } from './components/common/PartnerBankModal';
 import { JoinGroupModal } from './components/common/JoinGroupModal';
+import { RoleSelectionModal } from './components/common/RoleSelectionModal';
+import { PaymentHistoryModal } from './components/common/PaymentHistoryModal';
 import { Icon } from './components/common/Icon';
 
 // Screens
@@ -36,6 +38,10 @@ const AppContent: React.FC = () => {
     setPartnerBankModalOpen,
     isJoinModalOpen,
     setJoinModalOpen,
+    isRoleModalOpen,
+    setRoleModalOpen,
+    isPaymentHistoryModalOpen,
+    setPaymentHistoryModalOpen,
   } = useApp();
 
   const renderScreen = () => {
@@ -132,6 +138,16 @@ const AppContent: React.FC = () => {
       <JoinGroupModal
         isOpen={isJoinModalOpen}
         onClose={() => setJoinModalOpen(false)}
+      />
+
+      <RoleSelectionModal
+        isOpen={isRoleModalOpen}
+        onClose={() => setRoleModalOpen(false)}
+      />
+
+      <PaymentHistoryModal
+        isOpen={isPaymentHistoryModalOpen}
+        onClose={() => setPaymentHistoryModalOpen(false)}
       />
     </DeviceFrame>
   );

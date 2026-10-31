@@ -117,6 +117,27 @@ export interface Group {
   inviteLink?: string;
   members?: Member[];
   memberIds?: string[];
+  deletionRequest?: GroupDeletionRequest;
+}
+
+export type UserPrimaryRole = 'organizer' | 'member';
+
+export interface GroupDeletionRequest {
+  requestedAt: string;
+  requestedBy: string;
+  status: 'pending' | 'approved';
+  acceptedMemberIds: string[];
+  totalMembersCount: number;
+}
+
+export interface MemberPaymentHistoryItem {
+  id: string;
+  groupId: string;
+  groupName: string;
+  amount: number;
+  date: string;
+  state: MoneyState;
+  proof?: PaymentProof;
 }
 
 export interface ActivityItem {

@@ -202,13 +202,91 @@ export const M12PayContribution: React.FC = () => {
             </div>
           )}
 
+          {/* Payment Type: Full or Installment */}
+          <div className="bg-white rounded-[16px] p-4 border border-[#E3DDCF] shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-semibold text-[#4F5F57] uppercase tracking-wider">
+                {language === 'ha' ? 'Zaɓin Biya' : 'Payment Option'}
+              </span>
+              <span className="text-[11px] text-[#0F8A5F] font-bold bg-[#E3F4EC] px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Icon name="bank" size={12} strokeWidth={2.5} />
+                {language === 'ha' ? 'Bank Transfer' : 'Bank Transfer Only'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 bg-[#FAF7F0] p-1 rounded-[12px] border border-[#E3DDCF]">
+              <button
+                type="button"
+                onClick={() => setPaymentMode('full')}
+                className={`h-10 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer ${
+                  paymentMode === 'full'
+                    ? 'bg-[#0B3D2E] text-white shadow-sm'
+                    : 'text-[#4F5F57] hover:text-[#0B3D2E]'
+                }`}
+              >
+                {language === 'ha' ? 'Biya Gaba Ɗaya' : 'Full Payment'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode('installment')}
+                className={`h-10 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer ${
+                  paymentMode === 'installment'
+                    ? 'bg-[#0B3D2E] text-white shadow-sm'
+                    : 'text-[#4F5F57] hover:text-[#0B3D2E]'
+                }`}
+              >
+                {language === 'ha' ? 'Biya a Hankali' : 'Pay in Installment'}
+              </button>
+            </div>
+
+            {paymentMode === 'installment' && (
+              <div className="pt-2 space-y-2 border-t border-[#E3DDCF]">
+                <label className="block text-[12px] font-semibold text-[#4F5F57]">
+                  {language === 'ha' ? 'Adadin da kake so ka biya yanzu (₦)' : 'Installment Amount to Pay Now (₦)'}
+                </label>
+                <div className="flex items-center gap-2">
+                  {[5000, 10000, 15000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCustomInstallmentAmount(preset)}
+                      className={`px-3 py-1.5 rounded-[8px] text-[12px] font-bold border transition-colors cursor-pointer ${
+                        customInstallmentAmount === preset
+                          ? 'bg-[#E3F4EC] border-[#0F8A5F] text-[#0F8A5F]'
+                          : 'bg-white border-[#E3DDCF] text-[#4F5F57]'
+                      }`}
+                    >
+                      {formatNaira(preset)}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-[#0B3D2E]">₦</span>
+                  <input
+                    type="number"
+                    min={1000}
+                    max={userRemainingBalance}
+                    value={customInstallmentAmount}
+                    onChange={(e) => setCustomInstallmentAmount(Number(e.target.value) || 0)}
+                    className="w-full h-11 pl-8 pr-3.5 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] font-heading font-bold text-[15px] text-[#0B3D2E] focus:border-[#0F8A5F] focus:outline-none"
+                  />
+                </div>
+                <p className="text-[11px] text-[#4F5F57]">
+                  {language === 'ha'
+                    ? `Sauran kuɗi bayan wannan: ${formatNaira(Math.max(0, userRemainingBalance - customInstallmentAmount))}`
+                    : `Remaining balance after this payment: ${formatNaira(Math.max(0, userRemainingBalance - customInstallmentAmount))}`}
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Amount to Pay Card */}
           <div className="bg-white rounded-[16px] p-5 border border-[#E3DDCF] shadow-sm text-center">
             <span className="text-[12px] font-semibold uppercase tracking-wider text-[#4F5F57] block">
               {paymentTimingStatus === 'late'
                 ? t('totalAmountWithFee')
-                : paymentMode === 'installment' && paymentTimingStatus === 'before_due'
-                ? t('amountToPay')
+                : paymentMode === 'installment'
+                ? (language === 'ha' ? 'Adadin Biya a Hankali' : 'Installment Amount to Pay')
                 : t('amountToPayInFull')}
             </span>
             <span className="font-heading font-extrabold text-[36px] text-[#0B3D2E] block my-1">

@@ -64,7 +64,7 @@ export const W01InviteWebPage: React.FC = () => {
   const memberCount = invitePreview?.memberCount || 1;
   const organiserName = invitePreview?.organiserName || 'Organiser';
   const targetGroupId = invitePreview?.groupId || pathParam;
-  const organiserBank = invitePreview?.organiserAccount?.bankName || 'Partner Bank (CBN Licensed)';
+  const organiserBank = invitePreview?.organiserAccount?.bankName || 'Organizer Bank Account';
 
   const totalPayout = amount * size;
 
