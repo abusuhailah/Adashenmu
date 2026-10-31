@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBar } from '../components/common/StatusBar';
 import { Avatar } from '../components/common/Avatar';
 import { Icon } from '../components/common/Icon';
-import { formatNaira, InvitePreview } from '../data/types';
+import { formatNaira, InvitePreview, BankAccountDetails } from '../data/types';
 import { fetchInvitePreview } from '../lib/firebase';
 
 export const W01InviteWebPage: React.FC = () => {
@@ -12,20 +12,26 @@ export const W01InviteWebPage: React.FC = () => {
     navigate,
     joinGroupByCodeOrId,
     showToast,
-    partnerBank,
     currentRoute,
     liveUserProfile,
     signInWithGoogle,
     groups,
+    partnerBank,
   } = useApp();
   const { language, t } = useLanguage();
   const [isJoining, setIsJoining] = useState(false);
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
 
-  // Extract invite code or ID from the URL path: /join/:codeOrId
+  // Member Payout Bank Details
+  const [payoutBankName, setPayoutBankName] = useState(partnerBank?.bankName || 'Guaranty Trust Bank (GTBank)');
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState(partnerBank?.accountNumber || '');
+  const [payoutAccountName, setPayoutAccountName] = useState(liveUserProfile?.displayName || partnerBank?.accountName || '');
+  const [agreedToRules, setAgreedToRules] = useState(true);
+
+  // Extract invite code or ID from URL path: /join/:codeOrId
   const pathParam = currentRoute.startsWith('/join/')
-    ? currentRoute.replace('/join/', '')
-    : 'kasuwa-stall-weekly';
+    ? currentRoute.replace('/join/', '').trim()
+    : 'ADAS-8492';
 
   useEffect(() => {
     let isMounted = true;
@@ -41,19 +47,26 @@ export const W01InviteWebPage: React.FC = () => {
     };
   }, [pathParam]);
 
+  // Update default account name if user profile loads
+  useEffect(() => {
+    if (liveUserProfile?.displayName && !payoutAccountName) {
+      setPayoutAccountName(liveUserProfile.displayName);
+    }
+  }, [liveUserProfile?.displayName]);
+
   // Safe preview data
-  const groupName = invitePreview?.name || 'Kasuwa Stall Weekly';
-  const groupCode = invitePreview?.code || 'KASU-8821';
-  const amount = invitePreview?.amount || 5000;
-  const frequency = invitePreview?.frequency || 'weekly';
-  const dueDay = invitePreview?.dueDay || 'Friday by 6 pm';
-  const size = invitePreview?.size || 8;
+  const groupName = invitePreview?.name || 'Kasuwa Market Savings';
+  const groupCode = invitePreview?.code || pathParam.toUpperCase();
+  const amount = invitePreview?.amount || 20000;
+  const frequency = invitePreview?.frequency || 'monthly';
+  const dueDay = invitePreview?.dueDay || '28th of each month';
+  const size = invitePreview?.size || 5;
   const memberCount = invitePreview?.memberCount || 1;
-  const organiserName = invitePreview?.organiserName || 'Hauwa Ibrahim';
+  const organiserName = invitePreview?.organiserName || 'Organiser';
   const targetGroupId = invitePreview?.groupId || pathParam;
+  const organiserBank = invitePreview?.organiserAccount?.bankName || 'Partner Bank (CBN Licensed)';
 
   const totalPayout = amount * size;
-  const bankName = partnerBank?.bankName || 'Access Bank (CBN Licensed)';
 
   const isAlreadyMember = groups.some(
     (g) => g.id === targetGroupId || (g.code && g.code.toUpperCase() === groupCode.toUpperCase())
@@ -65,18 +78,40 @@ export const W01InviteWebPage: React.FC = () => {
       return;
     }
 
+    if (!liveUserProfile) {
+      const prof = await signInWithGoogle();
+      if (!prof) return;
+    }
+
+    if (!payoutAccountNumber.trim() || payoutAccountNumber.trim().length < 8) {
+      showToast(
+        language === 'ha'
+          ? 'Da fatan za a saka lambar asusun bankin da za a tura muku kuɗin rabo'
+          : 'Please enter your bank account number for receiving your payout',
+        'alert'
+      );
+      return;
+    }
+
+    if (!agreedToRules) {
+      showToast(
+        language === 'ha'
+          ? 'Dole ne ku amince da dokokin ƙungiya'
+          : 'You must agree to the group rules before joining',
+        'alert'
+      );
+      return;
+    }
+
     setIsJoining(true);
     try {
-      if (!liveUserProfile) {
-        // Authenticate with Google first
-        const prof = await signInWithGoogle();
-        if (!prof) {
-          setIsJoining(false);
-          return;
-        }
-      }
+      const memberPayoutDetails: BankAccountDetails = {
+        bankName: payoutBankName,
+        accountNumber: payoutAccountNumber.trim(),
+        accountName: payoutAccountName.trim() || (liveUserProfile?.displayName || 'Member'),
+      };
 
-      const joined = await joinGroupByCodeOrId(groupCode || targetGroupId);
+      const joined = await joinGroupByCodeOrId(groupCode || targetGroupId, memberPayoutDetails);
       showToast(
         language === 'ha'
           ? `Barka da zuwa! Kun shiga "${groupName}".`
@@ -104,17 +139,17 @@ export const W01InviteWebPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="px-5 pt-3 pb-6">
+        <div className="px-5 pt-3 pb-6 space-y-4">
           {/* Brand mark */}
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2">
             <img src="/brand/adashenmu-mark.svg" alt="Adashenmu" className="w-8 h-8 object-contain" />
             <span className="font-heading font-extrabold text-[20px] text-[#0B3D2E] tracking-tight">
               adashenmu
             </span>
           </div>
 
-          {/* Inviter row (read from safe invite preview) */}
-          <div className="flex items-center gap-3.5 mb-5 p-3 rounded-[14px] bg-white border border-[#E3DDCF]">
+          {/* Inviter row */}
+          <div className="flex items-center gap-3.5 p-3 rounded-[14px] bg-white border border-[#E3DDCF] shadow-xs">
             <Avatar initials={organiserName.slice(0, 2).toUpperCase()} color="clay" size={44} />
             <div>
               <p className="text-[14px] font-semibold text-[#0B3D2E]">
@@ -125,14 +160,14 @@ export const W01InviteWebPage: React.FC = () => {
               <div className="flex items-center gap-1.5 text-[12px] text-[#0F8A5F] font-medium mt-0.5">
                 <Icon name="shield" size={13} strokeWidth={2.4} />
                 <span>
-                  {language === 'ha' ? 'Mai shirya ƙungiya · An tantance' : 'Organiser · Verified'}
+                  {language === 'ha' ? 'Mai shirya ƙungiya · Asusun Google' : 'Organiser · Google Account'}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Group details card from safe preview */}
-          <div className="bg-white rounded-[16px] p-4 border border-[#E3DDCF] shadow-sm mb-4">
+          <div className="bg-white rounded-[16px] p-4 border border-[#E3DDCF] shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-heading font-bold text-[20px] text-[#0B3D2E]">{groupName}</h2>
               {groupCode && (
@@ -193,8 +228,8 @@ export const W01InviteWebPage: React.FC = () => {
                 </div>
                 <span>
                   {language === 'ha'
-                    ? 'Ana raba tsarin karɓar kuɗi a ranar farawa ta adashe'
-                    : 'Payout order is drawn fairly when the group starts'}
+                    ? 'Kowanne mamba yana samun rabonsa akan lokaci a kalandar rabo'
+                    : 'Transparent rotation calendar with confirmed turns and dates'}
                 </span>
               </div>
               <div className="flex items-start gap-2.5">
@@ -203,29 +238,94 @@ export const W01InviteWebPage: React.FC = () => {
                 </div>
                 <span>
                   {language === 'ha'
-                    ? 'Gafara ta kwana 1, sannan tarar rashin biya tana zuwa tukunyar ƙungiya'
-                    : '1-day grace, then late fee goes directly to the group pot'}
+                    ? `Biya yana zuwa asusun mai shirya a ${organiserBank}`
+                    : `Payments transfer to organiser account at ${organiserBank}`}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Licensed Bank Escrow Card */}
-          <div className="p-4 rounded-[16px] bg-[#0B3D2E] text-white border border-[#2FBF85]/20 shadow-md flex items-start gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#072A20] text-[#2FBF85] flex items-center justify-center shrink-0 mt-0.5">
-              <Icon name="bank" size={18} strokeWidth={2.2} />
-            </div>
-            <div>
-              <h4 className="font-heading font-bold text-[14px] text-white">
-                {bankName}
+          {/* Member's Payout Account Input: REQUIRED FOR RECEIVING PAYOUT */}
+          <div className="bg-white rounded-[16px] p-4.5 border border-[#0F8A5F]/40 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 text-[#0B3D2E]">
+              <Icon name="bank" size={18} className="text-[#0F8A5F]" />
+              <h4 className="font-heading font-bold text-[15px]">
+                {language === 'ha' ? 'Asusun Bankin Karɓar Rabon Kuɗi' : 'Your Payout Bank Account'}
               </h4>
-              <p className="text-[12px] text-white/80 mt-0.5 leading-snug">
-                {language === 'ha'
-                  ? 'Kudaden ƙungiya suna cikin asusun bankin abokin tarayya mai lasisi da inshorar NDIC. Ba a hannun mutum ɗaya ba.'
-                  : 'Group funds are held safely in a CBN-licensed, NDIC-insured partner bank escrow account. No single person can withdraw.'}
-              </p>
+            </div>
+            <p className="text-[12px] text-[#4F5F57] leading-relaxed">
+              {language === 'ha'
+                ? 'Saka asusun bankin da mai shirya zai tura muku kudin rabo lokacin da juyinku ya yi.'
+                : 'Enter the bank account where the organiser will transfer your pot payout when it is your turn.'}
+            </p>
+
+            <div className="space-y-2.5 pt-1">
+              <div>
+                <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                  {language === 'ha' ? 'Sunan Banki' : 'Bank Name'}
+                </label>
+                <select
+                  value={payoutBankName}
+                  onChange={(e) => setPayoutBankName(e.target.value)}
+                  className="w-full h-11 px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[14px] font-semibold text-[#0B3D2E] focus:border-[#0F8A5F] focus:outline-none"
+                >
+                  <option value="Guaranty Trust Bank (GTBank)">Guaranty Trust Bank (GTBank)</option>
+                  <option value="Access Bank">Access Bank</option>
+                  <option value="Zenith Bank">Zenith Bank</option>
+                  <option value="First Bank of Nigeria">First Bank of Nigeria</option>
+                  <option value="United Bank for Africa (UBA)">United Bank for Africa (UBA)</option>
+                  <option value="Kuda Bank">Kuda Bank (Microfinance)</option>
+                  <option value="OPay">OPay</option>
+                  <option value="Palmpay">Palmpay</option>
+                  <option value="Stanbic IBTC">Stanbic IBTC</option>
+                  <option value="Fidelity Bank">Fidelity Bank</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                  {language === 'ha' ? 'Lambar Asusun Banki (10 digits)' : 'Account Number (10 digits)'}
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  inputMode="numeric"
+                  value={payoutAccountNumber}
+                  onChange={(e) => setPayoutAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="0123456789"
+                  className="w-full h-11 px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] font-mono text-[15px] font-bold text-[#0B3D2E] focus:border-[#0F8A5F] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                  {language === 'ha' ? 'Sunan Mai Asusu' : 'Account Name'}
+                </label>
+                <input
+                  type="text"
+                  value={payoutAccountName}
+                  onChange={(e) => setPayoutAccountName(e.target.value)}
+                  placeholder="Full name as on bank account"
+                  className="w-full h-11 px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[14px] font-semibold text-[#0B3D2E] focus:border-[#0F8A5F] focus:outline-none"
+                />
+              </div>
             </div>
           </div>
+
+          {/* Rules acceptance check */}
+          <label className="flex items-start gap-2.5 cursor-pointer select-none px-1">
+            <input
+              type="checkbox"
+              checked={agreedToRules}
+              onChange={(e) => setAgreedToRules(e.target.checked)}
+              className="w-4 h-4 rounded text-[#0F8A5F] accent-[#0F8A5F] mt-0.5 shrink-0 cursor-pointer"
+            />
+            <span className="text-[12px] text-[#0B3D2E] leading-snug">
+              {language === 'ha'
+                ? 'Na amince da biyan kuɗin adashe a ranar da aka tsara kuma na karɓi rabona a kalandar rabo.'
+                : 'I agree to pay my contribution on schedule and collect my payout according to the agreed calendar.'}
+            </span>
+          </label>
         </div>
       </div>
 
@@ -252,7 +352,7 @@ export const W01InviteWebPage: React.FC = () => {
               <span>{language === 'ha' ? 'Shiga da Google domin Haɗuwa' : 'Sign in with Google to Join'}</span>
             </div>
           ) : (
-            <span>{language === 'ha' ? 'Amince & Shiga Ƙungiya' : 'Accept & join group'}</span>
+            <span>{language === 'ha' ? 'Amince & Shiga Ƙungiya' : 'Accept & Join Group'}</span>
           )}
         </button>
         <button

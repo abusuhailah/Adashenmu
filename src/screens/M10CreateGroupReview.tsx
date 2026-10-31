@@ -109,17 +109,111 @@ export const M10CreateGroupReview: React.FC = () => {
             </div>
           </div>
 
-          {/* Dark wallet card */}
+          {/* Organiser Receiving Bank Account */}
+          <div className="bg-white rounded-[16px] p-4.5 border border-[#E3DDCF] shadow-sm space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#E3F4EC] text-[#0F8A5F] flex items-center justify-center shrink-0">
+                <Icon name="bank" size={18} strokeWidth={2.2} />
+              </div>
+              <div>
+                <h4 className="font-heading font-bold text-[15px] text-[#0B3D2E]">
+                  Your Receiving Bank Account
+                </h4>
+                <p className="text-[12px] text-[#4F5F57]">
+                  Members will transfer their contributions to this account and upload proof.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              <div>
+                <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                  Bank Name
+                </label>
+                <select
+                  value={createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)'}
+                  onChange={(e) =>
+                    updateCreateGroupDraft({
+                      organiserAccount: {
+                        bankName: e.target.value,
+                        accountNumber: createGroupDraft.organiserAccount?.accountNumber || '0129482110',
+                        accountName: createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart',
+                      },
+                    })
+                  }
+                  className="w-full h-[46px] px-3.5 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[14px] text-[#0B3D2E] font-medium focus:border-[#0F8A5F] focus:outline-none"
+                >
+                  <option value="Guaranty Trust Bank (GTBank)">Guaranty Trust Bank (GTBank)</option>
+                  <option value="Zenith Bank">Zenith Bank</option>
+                  <option value="Access Bank">Access Bank</option>
+                  <option value="First Bank of Nigeria">First Bank of Nigeria</option>
+                  <option value="United Bank for Africa (UBA)">United Bank for Africa (UBA)</option>
+                  <option value="Kuda Microfinance Bank">Kuda Microfinance Bank</option>
+                  <option value="OPay">OPay</option>
+                  <option value="Moniepoint MFB">Moniepoint MFB</option>
+                  <option value="Stanbic IBTC Bank">Stanbic IBTC Bank</option>
+                  <option value="Jaiz Bank">Jaiz Bank</option>
+                  <option value="Taj Bank">Taj Bank</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={10}
+                    placeholder="0123456789"
+                    value={createGroupDraft.organiserAccount?.accountNumber || '0129482110'}
+                    onChange={(e) =>
+                      updateCreateGroupDraft({
+                        organiserAccount: {
+                          bankName: createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)',
+                          accountNumber: e.target.value.replace(/\D/g, ''),
+                          accountName: createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart',
+                        },
+                      })
+                    }
+                    className="w-full h-[46px] px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] font-mono text-[14px] text-[#0B3D2E] font-bold focus:border-[#0F8A5F] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#4F5F57] mb-1">
+                    Account Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Account Name"
+                    value={createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart'}
+                    onChange={(e) =>
+                      updateCreateGroupDraft({
+                        organiserAccount: {
+                          bankName: createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)',
+                          accountNumber: createGroupDraft.organiserAccount?.accountNumber || '0129482110',
+                          accountName: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full h-[46px] px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[13px] text-[#0B3D2E] font-medium focus:border-[#0F8A5F] focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Dark trust banner */}
           <div className="p-4.5 rounded-[16px] bg-[#0B3D2E] text-white border border-[#2FBF85]/20 shadow-md flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-full bg-[#072A20] text-[#2FBF85] flex items-center justify-center shrink-0">
               <Icon name="bank" size={20} strokeWidth={2.2} />
             </div>
             <div>
               <h4 className="font-heading font-bold text-[14px] text-white">
-                Group wallet at a licensed partner bank
+                Live Transparency & Payment Verification
               </h4>
               <p className="text-[12px] text-white/80 mt-1 leading-relaxed">
-                Payments go straight into the group wallet. The app releases each payout on its date. No member, including you, can withdraw it.
+                When members transfer contributions, they upload proof of payment. You will confirm each payment before the pot updates and payouts are released.
               </p>
             </div>
           </div>

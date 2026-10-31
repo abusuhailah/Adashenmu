@@ -28,7 +28,17 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Group, Member, MoneyState, InvitePreview, UserPrivateDetails } from '../data/types';
+import {
+  Group,
+  Member,
+  MoneyState,
+  InvitePreview,
+  UserPrivateDetails,
+  BankAccountDetails,
+  PaymentProof,
+  PayoutTurn,
+  TurnStatus,
+} from '../data/types';
 
 // Initialize Firebase App singleton
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -108,6 +118,7 @@ export interface LiveGroupData {
     balanceThisCycle: number;
     totalPotSaved: number;
   };
+  organiserAccount?: BankAccountDetails;
   currentCycle: {
     number: number;
     of: number;
@@ -123,13 +134,7 @@ export interface LiveGroupData {
     pendingCount: number;
   };
   members: Member[];
-  payoutCalendar: {
-    turn: number;
-    memberId: string;
-    date: string;
-    amount: number;
-    status: 'collected' | 'next' | 'yourTurn' | 'upcoming';
-  }[];
+  payoutCalendar: PayoutTurn[];
   status: 'active' | 'forming' | 'completed';
   createdAt: string;
 }
@@ -335,6 +340,7 @@ export async function createRealGroup(
     startDate: string;
     endDate: string;
     partnerBankName?: string;
+    organiserAccount?: BankAccountDetails;
   }
 ): Promise<LiveGroupData> {
   const groupId = 'group-' + Math.random().toString(36).substring(2, 8);
@@ -344,8 +350,27 @@ export async function createRealGroup(
     Math.floor(1000 + Math.random() * 9000);
 
   const totalPot = draft.amount * draft.size;
-  const bankName = draft.partnerBankName || organiser.partnerBank?.bankName || 'Access Bank (CBN Licensed)';
-  const accNum = '092' + Math.floor(1000000 + Math.random() * 9000000);
+  const bankName =
+    draft.organiserAccount?.bankName ||
+    draft.partnerBankName ||
+    organiser.partnerBank?.bankName ||
+    'Guaranty Trust Bank (GTBank)';
+
+  const accNum =
+    draft.organiserAccount?.accountNumber ||
+    organiser.partnerBank?.accountNumber ||
+    '0' + Math.floor(100000000 + Math.random() * 900000000);
+
+  const accName =
+    draft.organiserAccount?.accountName ||
+    organiser.partnerBank?.accountName ||
+    organiser.displayName;
+
+  const organiserAccount: BankAccountDetails = {
+    bankName,
+    accountNumber: accNum,
+    accountName: accName,
+  };
 
   const initialMember: Member = {
     id: organiser.id,
@@ -355,11 +380,13 @@ export async function createRealGroup(
     isYou: true,
     role: 'Organiser',
     ninVerified: organiser.ninVerified,
+    payoutAccount: organiserAccount,
   };
 
-  const payoutCalendar = Array.from({ length: draft.size }).map((_, idx) => ({
+  const payoutCalendar: PayoutTurn[] = Array.from({ length: draft.size }).map((_, idx) => ({
     turn: idx + 1,
     memberId: idx === 0 ? organiser.id : `slot-${idx + 1}`,
+    memberName: idx === 0 ? organiser.displayName : `Member Slot ${idx + 1}`,
     date: idx === 0 ? draft.startDate : `Cycle ${idx + 1}`,
     amount: totalPot,
     status: idx === 0 ? ('yourTurn' as const) : ('upcoming' as const),
@@ -390,12 +417,13 @@ export async function createRealGroup(
       changesNeedGroupVote: true,
     },
     wallet: {
-      heldBy: 'Licensed partner bank · NDIC Insured',
+      heldBy: `${bankName} · Organiser Account`,
       bankName,
       accountNumber: accNum,
       balanceThisCycle: 0,
       totalPotSaved: 0,
     },
+    organiserAccount,
     currentCycle: {
       number: 1,
       of: draft.size,
@@ -434,6 +462,7 @@ export async function createRealGroup(
     organiserId: organiser.id,
     status: 'forming',
     createdAt: new Date().toISOString(),
+    organiserAccount,
   };
 
   await setDoc(doc(db, 'invites', code), invitePreview);
@@ -447,7 +476,7 @@ export async function createRealGroup(
     who: organiser.id,
     whoName: organiser.displayName,
     title: `Group created: ${draft.name}`,
-    detail: `Target: ₦${totalPot.toLocaleString('en-NG')} · ${draft.size} members`,
+    detail: `Target: ₦${totalPot.toLocaleString('en-NG')} · ${draft.size} members · Receiving at ${bankName}`,
     amount: totalPot,
     state: 'pending',
     timestamp: new Date().toISOString(),
@@ -498,15 +527,19 @@ export async function fetchInvitePreview(codeOrId: string): Promise<InvitePrevie
 
 /**
  * Joins a group as non-member:
- * Updates groups/{groupId} adding user.id to memberIds and new Member to members.
+ * Updates groups/{groupId} adding user.id to memberIds and new Member to members with their payout bank details.
  * Keeps invites/{code} memberCount updated.
  */
 export async function joinGroupReal(
   groupId: string,
   user: LiveUserProfile,
-  knownGroupCode?: string
+  knownGroupCode?: string,
+  payoutAccount?: BankAccountDetails
 ): Promise<void> {
   const groupRef = doc(db, 'groups', groupId);
+  const snap = await getDoc(groupRef);
+  if (!snap.exists()) return;
+  const gData = snap.data() as LiveGroupData;
 
   const newMember: Member = {
     id: user.id,
@@ -516,51 +549,61 @@ export async function joinGroupReal(
     isYou: true,
     role: 'Member',
     ninVerified: user.ninVerified,
+    payoutAccount: payoutAccount || (user.partnerBank ? {
+      bankName: user.partnerBank.bankName,
+      accountNumber: user.partnerBank.accountNumber,
+      accountName: user.partnerBank.accountName,
+    } : undefined),
   };
+
+  // Find next unassigned payout calendar slot
+  const updatedCalendar = [...gData.payoutCalendar];
+  const nextSlotIndex = updatedCalendar.findIndex((t) => !t.memberId || t.memberId.startsWith('slot-'));
+  if (nextSlotIndex !== -1) {
+    updatedCalendar[nextSlotIndex] = {
+      ...updatedCalendar[nextSlotIndex],
+      memberId: user.id,
+      memberName: user.displayName,
+    };
+  }
 
   // Perform atomic join update
   await updateDoc(groupRef, {
     memberIds: arrayUnion(user.id),
     members: arrayUnion(newMember),
+    payoutCalendar: updatedCalendar,
   });
 
-  // Now that user is in memberIds, read group details for activity logging
-  try {
-    const snap = await getDoc(groupRef);
-    if (snap.exists()) {
-      const gData = snap.data() as LiveGroupData;
-
-      // Update invite previews
-      const inviteCode = knownGroupCode || gData.code;
-      if (inviteCode) {
-        try {
-          await updateDoc(doc(db, 'invites', inviteCode), {
-            memberCount: gData.members.length,
-          });
-        } catch {}
-      }
-
-      // Add activity entry
-      await addDoc(collection(db, 'groups', groupId, 'activities'), {
-        groupId,
-        who: user.id,
-        whoName: user.displayName,
-        title: `${user.displayName} joined the group`,
-        detail: `Member #${gData.members.length} of ${gData.rules.size}`,
-        amount: 0,
-        state: 'inThePot',
-        timestamp: new Date().toISOString(),
+  // Update invite previews
+  const inviteCode = knownGroupCode || gData.code;
+  if (inviteCode) {
+    try {
+      await updateDoc(doc(db, 'invites', inviteCode), {
+        memberCount: gData.members.length + 1,
       });
-    }
+    } catch {}
+  }
+
+  // Add activity entry
+  try {
+    await addDoc(collection(db, 'groups', groupId, 'activities'), {
+      groupId,
+      who: user.id,
+      whoName: user.displayName,
+      title: `${user.displayName} joined the group`,
+      detail: `Member #${gData.members.length + 1} of ${gData.rules.size} · Payout Turn #${nextSlotIndex !== -1 ? nextSlotIndex + 1 : gData.members.length + 1}`,
+      amount: 0,
+      state: 'inThePot',
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
-    console.warn('Post-join step notice:', err);
+    console.warn('Post-join activity notice:', err);
   }
 }
 
 /**
  * Records a real contribution:
- * Writes contribution to groups/{groupId}/contributions
- * Updates wallet & currentCycle on groups/{groupId}
+ * Writes contribution to groups/{groupId}/contributions with state: 'confirming' and attached proof of payment
  * Adds activity to groups/{groupId}/activities
  */
 export async function recordRealContribution(
@@ -568,19 +611,16 @@ export async function recordRealContribution(
   user: LiveUserProfile,
   amount: number,
   isFull: boolean,
-  method: 'ussd' | 'bankTransfer' | 'card'
+  method: 'ussd' | 'bankTransfer' | 'card',
+  proof?: PaymentProof
 ) {
   const groupRef = doc(db, 'groups', groupId);
   const groupSnap = await getDoc(groupRef);
   if (!groupSnap.exists()) return;
 
   const group = groupSnap.data() as LiveGroupData;
-  const newBalance = (group.wallet?.balanceThisCycle || 0) + amount;
-  const newPotTotal = (group.currentCycle?.potTotal || 0) + amount;
-  const newInThePotCount = Math.min(group.rules.size, (group.currentCycle?.inThePotCount || 0) + 1);
-  const newPendingCount = Math.max(0, (group.currentCycle?.pendingCount || 1) - 1);
 
-  // 1. Add contribution record (includes both memberId and userId for rule matching)
+  // 1. Add contribution record with state: 'confirming'
   await addDoc(collection(db, 'groups', groupId, 'contributions'), {
     groupId,
     memberId: user.id,
@@ -590,20 +630,19 @@ export async function recordRealContribution(
     amount,
     paymentType: isFull ? 'full' : 'installment',
     paymentMethod: method,
-    state: 'inThePot',
+    state: 'confirming',
+    proof: proof || null,
     paidAt: new Date().toISOString(),
   });
 
-  // 2. Update group wallet and currentCycle fields only
+  // 2. Update confirming count on group currentCycle
+  const newConfirmingCount = (group.currentCycle?.confirmingCount || 0) + 1;
+  const newPendingCount = Math.max(0, (group.currentCycle?.pendingCount || 1) - 1);
+
   await updateDoc(groupRef, {
-    wallet: {
-      ...group.wallet,
-      balanceThisCycle: newBalance,
-    },
     currentCycle: {
       ...group.currentCycle,
-      potTotal: newPotTotal,
-      inThePotCount: newInThePotCount,
+      confirmingCount: newConfirmingCount,
       pendingCount: newPendingCount,
     },
   });
@@ -613,10 +652,169 @@ export async function recordRealContribution(
     groupId,
     who: user.id,
     whoName: user.displayName,
-    title: isFull ? `${user.displayName} paid full contribution` : `${user.displayName} paid instalment`,
-    detail: `${method.toUpperCase()} · ₦${amount.toLocaleString('en-NG')} confirmed in group wallet`,
+    title: `${user.displayName} submitted payment of ₦${amount.toLocaleString('en-NG')}`,
+    detail: `Transfer to organiser account · Proof attached · Waiting for organiser confirmation`,
+    amount,
+    state: 'confirming',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Organiser confirms member's payment:
+ * Moves state to 'inThePot', increases wallet balance and pot total, logs verified activity
+ */
+export async function confirmPaymentReal(
+  groupId: string,
+  organiser: LiveUserProfile,
+  memberId: string,
+  memberName: string,
+  amount: number
+) {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnap = await getDoc(groupRef);
+  if (!groupSnap.exists()) return;
+
+  const group = groupSnap.data() as LiveGroupData;
+  const newBalance = (group.wallet?.balanceThisCycle || 0) + amount;
+  const newPotTotal = (group.currentCycle?.potTotal || 0) + amount;
+  const newInThePotCount = Math.min(group.rules.size, (group.currentCycle?.inThePotCount || 0) + 1);
+  const newConfirmingCount = Math.max(0, (group.currentCycle?.confirmingCount || 1) - 1);
+
+  await updateDoc(groupRef, {
+    wallet: {
+      ...group.wallet,
+      balanceThisCycle: newBalance,
+    },
+    currentCycle: {
+      ...group.currentCycle,
+      potTotal: newPotTotal,
+      inThePotCount: newInThePotCount,
+      confirmingCount: newConfirmingCount,
+    },
+  });
+
+  await addDoc(collection(db, 'groups', groupId, 'activities'), {
+    groupId,
+    who: organiser.id,
+    whoName: organiser.displayName,
+    title: `Payment Confirmed: ${memberName}'s ₦${amount.toLocaleString('en-NG')}`,
+    detail: `Verified by organiser ${organiser.displayName} · Money secured in pot`,
     amount,
     state: 'inThePot',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Organiser releases payout to the recipient member whose turn it is:
+ * Attaches payout proof, marks turn status as 'pending_member_confirmation'
+ */
+export async function releasePayoutReal(
+  groupId: string,
+  organiser: LiveUserProfile,
+  turnNumber: number,
+  recipientMemberId: string,
+  recipientName: string,
+  amount: number,
+  proof: PaymentProof
+) {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnap = await getDoc(groupRef);
+  if (!groupSnap.exists()) return;
+
+  const group = groupSnap.data() as LiveGroupData;
+  const updatedCalendar = group.payoutCalendar.map((t) => {
+    if (t.turn === turnNumber) {
+      return {
+        ...t,
+        status: 'pending_member_confirmation' as TurnStatus,
+        payoutProof: proof,
+      };
+    }
+    return t;
+  });
+
+  await updateDoc(groupRef, {
+    payoutCalendar: updatedCalendar,
+  });
+
+  await addDoc(collection(db, 'groups', groupId, 'activities'), {
+    groupId,
+    who: organiser.id,
+    whoName: organiser.displayName,
+    title: `Payout Released: ₦${amount.toLocaleString('en-NG')} sent to ${recipientName}`,
+    detail: `Proof of payment attached · Waiting for ${recipientName} to confirm receipt`,
+    amount,
+    state: 'confirming',
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Recipient member confirms receiving payout:
+ * Marks turn as 'collected', advances group to next cycle, and rotates next turn!
+ */
+export async function confirmPayoutReceivedReal(
+  groupId: string,
+  member: LiveUserProfile,
+  turnNumber: number,
+  amount: number
+) {
+  const groupRef = doc(db, 'groups', groupId);
+  const groupSnap = await getDoc(groupRef);
+  if (!groupSnap.exists()) return;
+
+  const group = groupSnap.data() as LiveGroupData;
+  const nextCycleNum = (group.currentCycle?.number || 1) + 1;
+
+  const updatedCalendar = group.payoutCalendar.map((t) => {
+    if (t.turn === turnNumber) {
+      return {
+        ...t,
+        status: 'collected' as TurnStatus,
+        confirmedAt: new Date().toISOString(),
+      };
+    }
+    if (t.turn === turnNumber + 1) {
+      return {
+        ...t,
+        status: 'next' as TurnStatus,
+      };
+    }
+    return t;
+  });
+
+  const nextTurn = updatedCalendar.find((t) => t.turn === turnNumber + 1);
+
+  await updateDoc(groupRef, {
+    payoutCalendar: updatedCalendar,
+    wallet: {
+      ...group.wallet,
+      balanceThisCycle: 0,
+      totalPotSaved: (group.wallet?.totalPotSaved || 0) + amount,
+    },
+    currentCycle: {
+      ...group.currentCycle,
+      number: nextCycleNum,
+      month: `Cycle ${nextCycleNum}`,
+      payoutTo: nextTurn?.memberName || `Turn #${turnNumber + 1}`,
+      payoutToMemberId: nextTurn?.memberId || '',
+      potTotal: 0,
+      inThePotCount: 0,
+      confirmingCount: 0,
+      pendingCount: group.rules.size,
+    },
+  });
+
+  await addDoc(collection(db, 'groups', groupId, 'activities'), {
+    groupId,
+    who: member.id,
+    whoName: member.displayName,
+    title: `Payout Completed: ${member.displayName} confirmed receipt`,
+    detail: `₦${amount.toLocaleString('en-NG')} received in bank account · Cycle ${group.currentCycle?.number} completed!`,
+    amount,
+    state: 'released',
     timestamp: new Date().toISOString(),
   });
 }

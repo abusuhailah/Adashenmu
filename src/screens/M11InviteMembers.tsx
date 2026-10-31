@@ -1,65 +1,23 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBar } from '../components/common/StatusBar';
 import { TopBar } from '../components/common/TopBar';
 import { Avatar } from '../components/common/Avatar';
 import { Icon } from '../components/common/Icon';
-
-interface InviteMember {
-  id: string;
-  name: string;
-  initials: string;
-  avatarColor: 'green' | 'gold' | 'blue' | 'clay' | 'grey';
-  status: 'joined' | 'invited';
-  subtitle: string;
-}
+import { formatNaira } from '../data/types';
 
 export const M11InviteMembers: React.FC = () => {
-  const { navigate, showToast, groups, createGroupDraft, partnerBank } = useApp();
+  const { navigate, showToast, activeGroup, createGroupDraft } = useApp();
   const { language, t } = useLanguage();
-  const [phoneNumber, setPhoneNumber] = useState('');
 
-  const activeGroup = groups[0];
   const groupName = activeGroup?.name || createGroupDraft.name;
-  const groupCode = activeGroup?.code || 'KASU-8492';
+  const groupCode = activeGroup?.code || 'ADAS-8492';
   const groupSize = activeGroup?.rules.size || createGroupDraft.size;
-  const bankName = activeGroup?.wallet?.bankName || partnerBank?.bankName || 'Access Bank (CBN Licensed)';
+  const bankName = activeGroup?.organiserAccount?.bankName || activeGroup?.wallet?.bankName || 'Guaranty Trust Bank (GTBank)';
+  const members = activeGroup?.members || [];
 
-  const inviteLink = `${window.location.origin}/join/${activeGroup?.code || activeGroup?.id || 'KASU-8821'}`;
-
-  // If real group has members, show them
-  const initialMembersList: InviteMember[] = activeGroup?.members && activeGroup.members.length > 0
-    ? activeGroup.members.map((m) => ({
-        id: m.id,
-        name: m.name,
-        initials: m.initials,
-        avatarColor: m.avatarColor,
-        status: 'joined' as const,
-        subtitle: m.role === 'Organiser'
-          ? (language === 'ha' ? 'Mai Shirya · Asusun Google' : 'Organiser · Google Account')
-          : (language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account'),
-      }))
-    : [
-        {
-          id: 'inv1',
-          name: 'Zainab Musa',
-          initials: 'ZM',
-          avatarColor: 'green',
-          status: 'joined',
-          subtitle: language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account',
-        },
-        {
-          id: 'inv2',
-          name: 'Aisha Bello',
-          initials: 'AB',
-          avatarColor: 'clay',
-          status: 'joined',
-          subtitle: language === 'ha' ? 'Ta shiga · Asusun Google' : 'Joined · Google Account',
-        },
-      ];
-
-  const [invitedMembers, setInvitedMembers] = useState<InviteMember[]>(initialMembersList);
+  const inviteLink = `${window.location.origin}/join/${groupCode}`;
 
   const handleCopyLink = () => {
     navigator.clipboard?.writeText(inviteLink);
@@ -104,24 +62,6 @@ export const M11InviteMembers: React.FC = () => {
     }
   };
 
-  const handleAddPhone = () => {
-    if (!phoneNumber.trim()) return;
-    const newMember: InviteMember = {
-      id: `inv-${Date.now()}`,
-      name: `Member (${phoneNumber.slice(-4)})`,
-      initials: 'M',
-      avatarColor: 'blue',
-      status: 'invited',
-      subtitle: language === 'ha' ? 'An aika gayyata yanzu' : 'Invited just now',
-    };
-    setInvitedMembers((prev) => [...prev, newMember]);
-    showToast(
-      language === 'ha' ? `An aika gayyata zuwa ${phoneNumber}!` : `Invite sent to ${phoneNumber}!`,
-      'success'
-    );
-    setPhoneNumber('');
-  };
-
   return (
     <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-y-auto hide-scrollbar">
       <div>
@@ -133,19 +73,19 @@ export const M11InviteMembers: React.FC = () => {
         />
 
         <div className="px-5 pt-1 pb-6 space-y-4">
-          {/* Success card */}
+          {/* Ready notification card */}
           <div className="p-4 rounded-[16px] bg-[#E3F4EC] border border-[#0F8A5F]/20 flex items-center gap-3.5 shadow-sm">
             <div className="w-10 h-10 rounded-full bg-[#0F8A5F] text-white flex items-center justify-center shrink-0">
               <Icon name="check" size={20} strokeWidth={2.5} />
             </div>
             <div>
               <h3 className="font-heading font-bold text-[16px] text-[#0B3D2E]">
-                {groupName} {language === 'ha' ? 'a shirye take' : 'is ready'}
+                {groupName} {language === 'ha' ? 'a shirye take' : 'is active'}
               </h3>
               <p className="text-[12px] text-[#0F8A5F] font-medium mt-0.5">
                 {language === 'ha'
-                  ? `Asusun ƙungiya a ${bankName}`
-                  : `Group wallet active at ${bankName}`}
+                  ? `Kudaden biya zasu shiga asusun ${bankName}`
+                  : `Member contributions routed to ${bankName}`}
               </p>
             </div>
           </div>
@@ -226,71 +166,59 @@ export const M11InviteMembers: React.FC = () => {
             </div>
           </div>
 
-          {/* Add by phone number */}
-          <div>
-            <label className="block text-[14px] font-semibold text-[#0B3D2E] mb-1.5">
-              {language === 'ha' ? 'Gayyaci ta lambar waya' : 'Add by phone number'}
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+234 800 000 0000"
-                className="flex-1 h-[52px] px-4 rounded-[10px] bg-white border border-[#E3DDCF] focus:border-[#0F8A5F] focus:outline-none text-[15px] font-medium text-[#0B3D2E]"
-              />
-              <button
-                type="button"
-                onClick={handleAddPhone}
-                aria-label="Add member by phone"
-                className="w-[52px] h-[52px] rounded-[10px] bg-[#0F8A5F] active:bg-[#0B6E4B] text-white flex items-center justify-center shrink-0 cursor-pointer shadow-sm hover:brightness-105"
-              >
-                <Icon name="plus" size={24} strokeWidth={2.5} />
-              </button>
-            </div>
+          {/* Clean Instruction: Self-service joining */}
+          <div className="p-3.5 rounded-[14px] bg-[#FFF4DB] border border-[#F2B33D]/30 flex items-start gap-2.5">
+            <Icon name="info" size={17} className="text-[#8A5A00] shrink-0 mt-0.5" />
+            <p className="text-[12px] text-[#4F5F57] leading-relaxed">
+              {language === 'ha'
+                ? 'Aika wannan mahada ko lambar ƙungiya ga mambobi. Lokacin da suka shiga, zasu shiga da Gmail, saka asusun bankin da zasu karɓi rabon kuɗi, kuma su haɗa kansu.'
+                : 'Send this invite link or group code to members. When they open it, they will sign in with Gmail, add their payout bank account, and join the group themselves.'}
+            </p>
           </div>
 
-          {/* Members list */}
+          {/* Real Members list */}
           <div className="bg-white rounded-[16px] border border-[#E3DDCF] shadow-sm overflow-hidden">
             <div className="px-4 py-3 bg-[#FAF7F0] border-b border-[#E3DDCF] flex items-center justify-between text-[13px]">
               <span className="font-semibold text-[#0B3D2E]">
-                {language === 'ha' ? 'Mambobin Ƙungiya' : 'Members'}
+                {language === 'ha' ? 'Mambobin da ke ciki' : 'Joined Members'}
               </span>
               <span className="font-semibold text-[#0F8A5F]">
-                {invitedMembers.length} {language === 'ha' ? 'cikin' : 'of'} {groupSize}{' '}
+                {members.length} {language === 'ha' ? 'cikin' : 'of'} {groupSize}{' '}
                 {language === 'ha' ? 'sun shiga' : 'joined'}
               </span>
             </div>
 
             <div className="divide-y divide-[#EFEAE0]">
-              {invitedMembers.map((item) => (
-                <div key={item.id} className="p-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar initials={item.initials} color={item.avatarColor} size={36} />
-                    <div>
-                      <span className="text-[14px] font-semibold text-[#0B3D2E] block leading-tight">
-                        {item.name}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#4F5F57] mt-0.5">
-                        {item.status === 'joined' && (
+              {members.length === 0 ? (
+                <div className="p-4 text-center text-[13px] text-[#4F5F57]">
+                  {language === 'ha' ? 'Babu wani mamba da ya shiga tukuna.' : 'No members have joined yet.'}
+                </div>
+              ) : (
+                members.map((item, idx) => (
+                  <div key={item.id} className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar initials={item.initials} color={item.avatarColor} size={36} />
+                      <div>
+                        <span className="text-[14px] font-semibold text-[#0B3D2E] block leading-tight">
+                          {item.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[12px] text-[#4F5F57] mt-0.5">
                           <Icon name="shield" size={13} className="text-[#0F8A5F]" strokeWidth={2.2} />
-                        )}
-                        <span>{item.subtitle}</span>
+                          <span>
+                            {item.role === 'Organiser'
+                              ? language === 'ha' ? 'Mai Shirya · Asusun Google' : 'Organiser · Google Account'
+                              : language === 'ha' ? `Mamba #${idx + 1}` : `Member #${idx + 1}`}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {item.status === 'invited' && (
-                    <button
-                      type="button"
-                      onClick={() => showToast(language === 'ha' ? `An tunatar da ${item.name}!` : `Reminder sent to ${item.name}!`, 'info')}
-                      className="text-[12px] font-bold text-[#0B6E4B] hover:underline cursor-pointer"
-                    >
-                      {language === 'ha' ? 'Tunatar' : 'Remind'}
-                    </button>
-                  )}
-                </div>
-              ))}
+                    <span className="text-[11px] font-bold text-[#0F8A5F] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
+                      {item.role === 'Organiser' ? 'Organiser' : 'Joined'}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

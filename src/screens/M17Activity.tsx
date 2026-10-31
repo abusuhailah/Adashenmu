@@ -6,13 +6,14 @@ import { TopBar } from '../components/common/TopBar';
 import { BottomTabBar } from '../components/common/BottomTabBar';
 import { Avatar, AvatarColor } from '../components/common/Avatar';
 import { MoneyStateBadge } from '../components/common/MoneyStateBadge';
+import { Icon } from '../components/common/Icon';
 import { formatNaira } from '../data/types';
 
 type FilterType = 'all' | 'pending' | 'confirming' | 'late' | 'released';
 
 export const M17Activity: React.FC = () => {
-  const { navigate, activity, members } = useApp();
-  const { t } = useLanguage();
+  const { navigate, activity, members, notifications, markNotificationRead } = useApp();
+  const { t, language } = useLanguage();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   const filterOptions: { id: FilterType; label: string }[] = [
@@ -60,8 +61,66 @@ export const M17Activity: React.FC = () => {
           })}
         </div>
 
-        {/* Activity grouped list */}
+        {/* Notifications and Activity grouped list */}
         <div className="px-5 pt-2 pb-6 space-y-5">
+          {/* Recent System Notifications */}
+          {notifications && notifications.length > 0 && (
+            <div>
+              <span className="text-[12px] font-bold text-[#0F8A5F] uppercase tracking-wider block mb-2 px-1">
+                {language === 'ha' ? 'Sanarwar Kudi' : 'System & Payment Alerts'}
+              </span>
+              <div className="bg-white rounded-[16px] border border-[#E3DDCF] shadow-sm divide-y divide-[#EFEAE0] overflow-hidden">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => markNotificationRead(notif.id)}
+                    className={`p-3.5 flex items-start gap-3 transition-colors ${
+                      notif.read ? 'bg-white' : 'bg-[#E3F4EC]/30'
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        notif.type.includes('payout')
+                          ? 'bg-[#EBF3FB] text-[#1E5D88]'
+                          : notif.type.includes('confirm')
+                          ? 'bg-[#E3F4EC] text-[#0F8A5F]'
+                          : notif.type === 'late'
+                          ? 'bg-[#FEF3F2] text-[#B42318]'
+                          : 'bg-[#FAF7F0] text-[#0B3D2E]'
+                      }`}
+                    >
+                      <Icon
+                        name={
+                          notif.type.includes('payout')
+                            ? 'party'
+                            : notif.type.includes('confirm')
+                            ? 'check'
+                            : notif.type === 'late'
+                            ? 'alert'
+                            : 'bell'
+                        }
+                        size={18}
+                        strokeWidth={2.2}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-heading font-bold text-[14px] text-[#0B3D2E]">
+                          {notif.title}
+                        </span>
+                        <span className="text-[11px] text-[#8A968F]">{notif.time || notif.timestamp || 'Just now'}</span>
+                      </div>
+                      <p className="text-[12px] text-[#4F5F57] mt-0.5 leading-snug">
+                        {notif.detail || notif.message}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Activity items */}
           {activity.map((section) => {
             const filteredItems = section.items.filter((item) => {
               if (activeFilter === 'all') return true;
@@ -107,6 +166,23 @@ export const M17Activity: React.FC = () => {
               </div>
             );
           })}
+
+          {/* Clean empty state when no activity exists */}
+          {activity.length === 0 && (!notifications || notifications.length === 0) && (
+            <div className="bg-white rounded-[16px] p-6 border border-[#E3DDCF] shadow-sm text-center my-4">
+              <div className="w-13 h-13 rounded-full bg-[#E3F4EC] text-[#0F8A5F] flex items-center justify-center mx-auto mb-3">
+                <Icon name="activity" size={24} strokeWidth={2.2} />
+              </div>
+              <h3 className="font-heading font-bold text-[16px] text-[#0B3D2E] mb-1">
+                {language === 'ha' ? 'Babu Ayyukan Kudi Tukuna' : 'No Activity Yet'}
+              </h3>
+              <p className="text-[13px] text-[#4F5F57] leading-relaxed max-w-[280px] mx-auto">
+                {language === 'ha'
+                  ? 'Da zarar mambobi suka tura kudi ko aka fitar da kudin adashe, dukkan bayanan za su bayyana a nan tare da tabbatar da gaskiya.'
+                  : 'As soon as members transfer contributions or payouts are disbursed, real-time records and payment receipts will appear here.'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
