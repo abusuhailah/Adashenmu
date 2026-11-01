@@ -5,7 +5,7 @@ import { StatusBar } from '../components/common/StatusBar';
 import { Icon } from '../components/common/Icon';
 
 export const M01Welcome: React.FC = () => {
-  const { navigate, signInWithGoogle, liveUserProfile } = useApp();
+  const { navigate, signInWithGoogle, setGoogleAccountModalOpen, liveUserProfile } = useApp();
   const { language, setLanguage, t } = useLanguage();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
@@ -16,13 +16,8 @@ export const M01Welcome: React.FC = () => {
     }
   }, [liveUserProfile, navigate]);
 
-  const handleGoogleSignIn = async () => {
-    setIsSigningIn(true);
-    try {
-      await signInWithGoogle();
-    } finally {
-      setIsSigningIn(false);
-    }
+  const handleGoogleSignIn = () => {
+    setGoogleAccountModalOpen(true);
   };
 
   return (

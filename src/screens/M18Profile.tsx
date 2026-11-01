@@ -38,8 +38,8 @@ export const M18Profile: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
-      <div className="flex-1 overflow-y-auto hide-scrollbar">
+    <div className="h-full max-h-full flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 overflow-y-auto hide-scrollbar overscroll-contain">
         <StatusBar mode="light" />
         <TopBar title={t('profile')} showBack={false} />
 

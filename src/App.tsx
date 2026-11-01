@@ -6,6 +6,7 @@ import { PartnerBankModal } from './components/common/PartnerBankModal';
 import { JoinGroupModal } from './components/common/JoinGroupModal';
 import { RoleSelectionModal } from './components/common/RoleSelectionModal';
 import { PaymentHistoryModal } from './components/common/PaymentHistoryModal';
+import { GoogleAccountSelectModal } from './components/common/GoogleAccountSelectModal';
 import { Icon } from './components/common/Icon';
 
 // Screens
@@ -42,6 +43,10 @@ const AppContent: React.FC = () => {
     setRoleModalOpen,
     isPaymentHistoryModalOpen,
     setPaymentHistoryModalOpen,
+    isGoogleAccountModalOpen,
+    setGoogleAccountModalOpen,
+    signInWithSelectedEmail,
+    signInWithGoogle,
   } = useApp();
 
   const renderScreen = () => {
@@ -148,6 +153,17 @@ const AppContent: React.FC = () => {
       <PaymentHistoryModal
         isOpen={isPaymentHistoryModalOpen}
         onClose={() => setPaymentHistoryModalOpen(false)}
+      />
+
+      <GoogleAccountSelectModal
+        isOpen={isGoogleAccountModalOpen}
+        onClose={() => setGoogleAccountModalOpen(false)}
+        onSelectAccount={async (email, name) => {
+          await signInWithSelectedEmail(email, name);
+        }}
+        onTriggerGooglePopup={async () => {
+          await signInWithGoogle();
+        }}
       />
     </DeviceFrame>
   );

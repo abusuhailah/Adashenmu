@@ -10,8 +10,8 @@ interface DeviceFrameProps {
  */
 export const DeviceFrame: React.FC<DeviceFrameProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-[#F5F2EB] flex flex-col items-center justify-start w-full">
-      <main className="w-full max-w-lg min-h-screen bg-[#FAF7F0] flex flex-col relative shadow-sm border-x border-[#E3DDCF]/60">
+    <div className="h-[100dvh] max-h-[100dvh] bg-[#F5F2EB] flex flex-col items-center justify-center w-full overflow-hidden">
+      <main className="w-full max-w-lg h-full max-h-[100dvh] bg-[#FAF7F0] flex flex-col relative shadow-md border-x border-[#E3DDCF]/60 overflow-hidden">
         {children}
       </main>
     </div>

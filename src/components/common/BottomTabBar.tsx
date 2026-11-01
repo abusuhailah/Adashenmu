@@ -20,7 +20,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
   ];
 
   return (
-    <nav className="w-full bg-white border-t border-[#E3DDCF] shrink-0 select-none z-30 shadow-xs">
+    <nav className="w-full bg-white/95 backdrop-blur-md border-t border-[#E3DDCF] shrink-0 select-none z-40 shadow-lg sticky bottom-0">
       <div className="w-full max-w-lg mx-auto px-3 flex items-center justify-between h-[66px] pb-1 pt-1">
         {tabs.map((tab) => {
           if (tab.isRaised) {

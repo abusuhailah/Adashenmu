@@ -102,6 +102,9 @@ interface AppContextType {
   };
   liveUserProfile: LiveUserProfile | null;
   signInWithGoogle: () => Promise<LiveUserProfile | null | void>;
+  signInWithSelectedEmail: (email: string, name?: string) => Promise<LiveUserProfile>;
+  isGoogleAccountModalOpen: boolean;
+  setGoogleAccountModalOpen: (open: boolean) => void;
   signInWithPhoneDirect: (phone: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
 
@@ -353,6 +356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return null;
   });
   const [isRoleModalOpen, setRoleModalOpen] = useState(false);
+  const [isGoogleAccountModalOpen, setGoogleAccountModalOpen] = useState(false);
 
   // Member Payment History state
   const [memberPaymentHistory, setMemberPaymentHistory] = useState<MemberPaymentHistoryItem[]>(() => {
@@ -676,6 +680,63 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       navigate('/home');
       return profile;
     }
+  };
+
+  const signInWithSelectedEmail = async (email: string, name?: string): Promise<LiveUserProfile> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const displayName =
+      name ||
+      cleanEmail
+        .split('@')[0]
+        .replace(/[._]/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    const initials =
+      displayName
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || 'AD';
+
+    const fallbackUid =
+      cleanEmail === 'suhailahmart@gmail.com'
+        ? 'user-suhailah'
+        : `user-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '').slice(-12)}`;
+
+    const profile: LiveUserProfile = {
+      id: fallbackUid,
+      email: cleanEmail,
+      displayName,
+      phone: '+234 803 412 7765',
+      initials,
+      avatarColor: 'green',
+      ninVerified: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const uDoc = await getDoc(doc(db, 'users', fallbackUid));
+      if (uDoc.exists()) {
+        const d = uDoc.data() as any;
+        if (d.displayName) profile.displayName = d.displayName;
+        if (d.avatarColor) profile.avatarColor = d.avatarColor;
+      }
+    } catch {}
+
+    setLiveUserProfile(profile);
+    setNinVerified(true);
+    try {
+      localStorage.setItem('adashenmu_user_session', JSON.stringify(profile));
+    } catch {}
+
+    const storedRole = localStorage.getItem('adashenmu_user_role');
+    if (!storedRole && !userRole) {
+      setRoleModalOpen(true);
+    }
+
+    showToast(`Welcome, ${profile.displayName}! Signed in with ${cleanEmail}`, 'success');
+    navigate('/home');
+    return profile;
   };
 
   const signInWithPhoneDirect = async (phone: string, name?: string) => {
@@ -1507,6 +1568,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         currentUser,
         liveUserProfile,
         signInWithGoogle,
+        signInWithSelectedEmail,
+        isGoogleAccountModalOpen,
+        setGoogleAccountModalOpen,
         signInWithPhoneDirect,
         signOut,
         members,
