@@ -16,8 +16,17 @@ export const M05MyGroups: React.FC = () => {
     userContributionState,
     setJoinModalOpen,
     currentUser,
+    groupFilter,
+    setGroupFilter,
   } = useApp();
   const { language, t } = useLanguage();
+
+  const organizedGroups = groups.filter((g) => g.organiserId === currentUser.id);
+  const memberGroups = groups.filter((g) => g.organiserId !== currentUser.id);
+  const hasOrganizedGroups = organizedGroups.length > 0;
+
+  const showOrganiserSection = hasOrganizedGroups && (groupFilter === 'all' || groupFilter === 'organiser');
+  const showMemberSection = groupFilter === 'all' || groupFilter === 'member' || !hasOrganizedGroups;
 
   return (
     <div className="h-full max-h-full flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-hidden">
@@ -26,6 +35,31 @@ export const M05MyGroups: React.FC = () => {
         <TopBar title={t('myGroups')} showBack={false} />
 
         <div className="px-5 space-y-4 pb-6 pt-1">
+          {/* Dropdown Switcher: ONLY shown if user organizes at least 1 group; hidden if only a member */}
+          {hasOrganizedGroups && (
+            <div className="bg-white rounded-[14px] p-2.5 px-3.5 border border-[#E3DDCF] shadow-xs flex items-center justify-between gap-3">
+              <label htmlFor="group-role-switcher" className="text-[12px] font-bold text-[#4F5F57] uppercase tracking-wider shrink-0">
+                {language === 'ha' ? 'Tace Ƙungiyoyi' : 'Show Groups'}
+              </label>
+              <select
+                id="group-role-switcher"
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value as 'all' | 'organiser' | 'member')}
+                className="bg-[#FAF7F0] border border-[#E3DDCF] rounded-[10px] px-3 py-1.5 text-[13px] font-bold text-[#0B3D2E] focus:outline-none focus:border-[#0F8A5F] cursor-pointer"
+              >
+                <option value="all">
+                  {language === 'ha' ? `Dukkan Ƙungiyoyi (${groups.length})` : `All Groups (${groups.length})`}
+                </option>
+                <option value="organiser">
+                  {language === 'ha' ? `Ƙungiyoyin Mai Shirya (${organizedGroups.length})` : `Groups as Organiser (${organizedGroups.length})`}
+                </option>
+                <option value="member">
+                  {language === 'ha' ? `Ƙungiyoyin Mamba (${memberGroups.length})` : `Groups as Member (${memberGroups.length})`}
+                </option>
+              </select>
+            </div>
+          )}
+
           {/* Empty state if user has no groups yet */}
           {groups.length === 0 && (
             <div className="bg-white rounded-[16px] p-6 border border-[#E3DDCF] shadow-sm text-center my-2">
@@ -44,20 +78,18 @@ export const M05MyGroups: React.FC = () => {
           )}
 
           {/* Groups You Organise Section */}
-          {groups.filter((g) => g.organiserId === currentUser.id).length > 0 && (
+          {showOrganiserSection && organizedGroups.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[12px] font-bold text-[#0F8A5F] uppercase tracking-wider">
                   {language === 'ha' ? 'Kungiyoyin da Kake Shiryawa' : 'Groups You Organise'}
                 </span>
                 <span className="text-[11px] font-semibold bg-[#E3F4EC] text-[#0B6E4B] px-2 py-0.5 rounded-full border border-[#0F8A5F]/20">
-                  {groups.filter((g) => g.organiserId === currentUser.id).length}
+                  {organizedGroups.length}
                 </span>
               </div>
 
-              {groups
-                .filter((g) => g.organiserId === currentUser.id)
-                .map((group) => {
+              {organizedGroups.map((group) => {
                   const size = group.rules?.size || 10;
                   const confirmedCount = group.members?.length || 1;
                   const progressPercent = Math.min(100, Math.round((confirmedCount / size) * 100));
@@ -140,20 +172,18 @@ export const M05MyGroups: React.FC = () => {
           )}
 
           {/* Groups You Joined Section */}
-          {groups.filter((g) => g.organiserId !== currentUser.id).length > 0 && (
+          {showMemberSection && memberGroups.length > 0 && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[12px] font-bold text-[#1E5D88] uppercase tracking-wider">
                   {language === 'ha' ? 'Kungiyoyin da Kake Ciki (Mamba)' : 'Groups You Joined'}
                 </span>
                 <span className="text-[11px] font-semibold bg-[#EBF3FB] text-[#1E5D88] px-2 py-0.5 rounded-full border border-[#1E5D88]/20">
-                  {groups.filter((g) => g.organiserId !== currentUser.id).length}
+                  {memberGroups.length}
                 </span>
               </div>
 
-              {groups
-                .filter((g) => g.organiserId !== currentUser.id)
-                .map((group) => {
+              {memberGroups.map((group) => {
                   const size = group.rules?.size || 10;
                   const confirmedCount = group.members?.length || 1;
                   const progressPercent = Math.min(100, Math.round((confirmedCount / size) * 100));

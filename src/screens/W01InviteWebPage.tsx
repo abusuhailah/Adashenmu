@@ -23,7 +23,7 @@ export const W01InviteWebPage: React.FC = () => {
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null);
 
   // Member Payout Bank Details
-  const [payoutBankName, setPayoutBankName] = useState(partnerBank?.bankName || 'Guaranty Trust Bank (GTBank)');
+  const [payoutBankName, setPayoutBankName] = useState(partnerBank?.bankName || '');
   const [payoutAccountNumber, setPayoutAccountNumber] = useState(partnerBank?.accountNumber || '');
   const [payoutAccountName, setPayoutAccountName] = useState(liveUserProfile?.displayName || partnerBank?.accountName || '');
   const [agreedToRules, setAgreedToRules] = useState(true);
@@ -83,11 +83,31 @@ export const W01InviteWebPage: React.FC = () => {
       if (!prof) return;
     }
 
-    if (!payoutAccountNumber.trim() || payoutAccountNumber.trim().length < 8) {
+    if (!payoutBankName) {
       showToast(
         language === 'ha'
-          ? 'Da fatan za a saka lambar asusun bankin da za a tura muku kuɗin rabo'
-          : 'Please enter your bank account number for receiving your payout',
+          ? 'Da fatan za a zaɓi bankin da za a tura muku kuɗin rabo'
+          : 'Please select your payout bank from the list',
+        'alert'
+      );
+      return;
+    }
+
+    if (!payoutAccountNumber.trim() || payoutAccountNumber.trim().length !== 10) {
+      showToast(
+        language === 'ha'
+          ? 'Lambar asusun banki dole ta kasance lambobi 10'
+          : 'Please enter a valid 10-digit bank account number',
+        'alert'
+      );
+      return;
+    }
+
+    if (!payoutAccountName.trim()) {
+      showToast(
+        language === 'ha'
+          ? 'Da fatan za a saka sunan mai asusu'
+          : 'Please enter the account holder name',
         'alert'
       );
       return;
@@ -269,6 +289,7 @@ export const W01InviteWebPage: React.FC = () => {
                   onChange={(e) => setPayoutBankName(e.target.value)}
                   className="w-full h-11 px-3 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[14px] font-semibold text-[#0B3D2E] focus:border-[#0F8A5F] focus:outline-none"
                 >
+                  <option value="">-- Select Payout Bank --</option>
                   <option value="Guaranty Trust Bank (GTBank)">Guaranty Trust Bank (GTBank)</option>
                   <option value="Access Bank">Access Bank</option>
                   <option value="Zenith Bank">Zenith Bank</option>

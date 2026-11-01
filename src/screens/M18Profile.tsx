@@ -17,8 +17,6 @@ export const M18Profile: React.FC = () => {
     partnerBank,
     setPartnerBankModalOpen,
     userRole,
-    setUserRole,
-    setRoleModalOpen,
     memberPaymentHistory,
     setPaymentHistoryModalOpen,
     signOut,
@@ -133,34 +131,6 @@ export const M18Profile: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-bold text-[#0B3D2E] bg-[#FAF7F0] border border-[#E3DDCF] px-2 py-0.5 rounded-full">
                   {memberPaymentHistory.length}
-                </span>
-                <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
-              </div>
-            </div>
-
-            {/* Role Switcher: Organiser vs Member */}
-            <div
-              onClick={() => setRoleModalOpen(true)}
-              className="p-3.5 flex items-center justify-between hover:bg-[#FAF7F0] cursor-pointer transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[10px] bg-[#FAF7F0] text-[#0F8A5F] flex items-center justify-center shrink-0">
-                  <Icon name="user" size={18} />
-                </div>
-                <div>
-                  <span className="text-[14px] font-semibold text-[#0B3D2E] block">
-                    {language === 'ha' ? 'Sauya Matsayi (Organiser / Member)' : 'Switch Role (Organiser / Member)'}
-                  </span>
-                  <span className="text-[12px] text-[#4F5F57] block mt-0.5">
-                    {userRole === 'organizer' || currentUser.role === 'Organiser'
-                      ? language === 'ha' ? 'Mai Shirya Ƙungiya (Organiser Mode)' : 'Group Organiser (Create & manage)'
-                      : language === 'ha' ? 'Mamba (Member Mode) · Danna domin zama mai shirya' : 'Group Member · Tap to become an organiser'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-[#0B6E4B] bg-[#E3F4EC] px-2 py-0.5 rounded-full">
-                  {userRole === 'organizer' || currentUser.role === 'Organiser' ? 'ORGANISER' : 'MEMBER'}
                 </span>
                 <Icon name="chevron-right" size={18} className="text-[#8A968F]" />
               </div>

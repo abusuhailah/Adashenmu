@@ -8,13 +8,14 @@ import { Icon } from '../components/common/Icon';
 import { formatNaira } from '../data/types';
 
 export const M11InviteMembers: React.FC = () => {
-  const { navigate, showToast, activeGroup, createGroupDraft } = useApp();
+  const { navigate, showToast, activeGroup, createGroupDraft, currentUser } = useApp();
   const { language, t } = useLanguage();
 
+  const isOrganiser = !activeGroup || activeGroup.organiserId === currentUser.id;
   const groupName = activeGroup?.name || createGroupDraft.name;
   const groupCode = activeGroup?.code || 'ADAS-8492';
   const groupSize = activeGroup?.rules.size || createGroupDraft.size;
-  const bankName = activeGroup?.organiserAccount?.bankName || activeGroup?.wallet?.bankName || 'Guaranty Trust Bank (GTBank)';
+  const bankName = activeGroup?.organiserAccount?.bankName || activeGroup?.wallet?.bankName || 'Organizer Bank Account';
   const members = activeGroup?.members || [];
 
   const inviteLink = `${window.location.origin}/join/${groupCode}`;
@@ -61,6 +62,39 @@ export const M11InviteMembers: React.FC = () => {
       handleCopyLink();
     }
   };
+
+  if (!isOrganiser) {
+    return (
+      <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-y-auto">
+        <StatusBar mode="light" />
+        <TopBar
+          title={t('manageInvites')}
+          onBack={() => navigate(activeGroup ? `/groups/${activeGroup.id}/ledger` : '/groups')}
+          showBack={true}
+        />
+        <div className="p-6 text-center space-y-4 my-auto max-w-sm mx-auto">
+          <div className="w-14 h-14 rounded-full bg-[#FFF4DB] text-[#8A5A00] flex items-center justify-center mx-auto">
+            <Icon name="shield" size={28} />
+          </div>
+          <h3 className="font-heading font-bold text-[18px] text-[#0B3D2E]">
+            {language === 'ha' ? 'Mai Shirya Ne Kadai Ke Da Ikon Gayyata' : 'Only Group Organisers Can Invite Members'}
+          </h3>
+          <p className="text-[13px] text-[#4F5F57] leading-relaxed">
+            {language === 'ha'
+              ? 'Kuna cikin wannan kungiya a matsayin mamba. Mai shirya kungiya ne kawai yake da ikon aika gayyata.'
+              : 'You are participating as a group member. Only the organizer of this group can generate and share invite links.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(activeGroup ? `/groups/${activeGroup.id}/ledger` : '/groups')}
+            className="w-full h-11 rounded-[12px] bg-[#0F8A5F] text-white font-bold text-[14px] cursor-pointer hover:brightness-105"
+          >
+            {language === 'ha' ? 'Koma Asusun Ƙungiya' : 'Return to Group Ledger'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-[#FAF7F0] flex flex-col justify-between overflow-y-auto hide-scrollbar">

@@ -678,24 +678,26 @@ export const M06GroupLedger: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Share Invite Banner */}
-            <div className="p-4 rounded-[16px] bg-white border border-[#E3DDCF] shadow-sm flex items-center justify-between">
-              <div>
-                <h4 className="font-heading font-bold text-[14px] text-[#0B3D2E]">
-                  {language === 'ha' ? 'Gayyaci ƙarin mambobi' : 'Invite more members'}
-                </h4>
-                <p className="text-[12px] text-[#4F5F57] mt-0.5">
-                  Code: <strong className="font-mono text-[#0B3D2E]">{targetGroup.code}</strong>
-                </p>
+            {/* Quick Share Invite Banner: Only Organizer can invite members */}
+            {isOrganiser && (
+              <div className="p-4 rounded-[16px] bg-white border border-[#E3DDCF] shadow-sm flex items-center justify-between">
+                <div>
+                  <h4 className="font-heading font-bold text-[14px] text-[#0B3D2E]">
+                    {language === 'ha' ? 'Gayyaci ƙarin mambobi' : 'Invite more members'}
+                  </h4>
+                  <p className="text-[12px] text-[#4F5F57] mt-0.5">
+                    Code: <strong className="font-mono text-[#0B3D2E]">{targetGroup.code}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/groups/invite')}
+                  className="px-3.5 py-2 rounded-[10px] bg-[#E3F4EC] text-[#0F8A5F] font-bold text-[13px] hover:bg-[#0F8A5F] hover:text-white transition-colors cursor-pointer"
+                >
+                  {language === 'ha' ? 'Duba Mahada' : 'Share Link'}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/groups/invite')}
-                className="px-3.5 py-2 rounded-[10px] bg-[#E3F4EC] text-[#0F8A5F] font-bold text-[13px] hover:bg-[#0F8A5F] hover:text-white transition-colors cursor-pointer"
-              >
-                {language === 'ha' ? 'Duba Mahada' : 'Share Link'}
-              </button>
-            </div>
+            )}
           </div>
         )}
 
@@ -842,11 +844,11 @@ export const M06GroupLedger: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/70">Bank:</span>
-                  <span className="font-bold">{recipientMember.payoutAccount?.bankName || 'GTBank'}</span>
+                  <span className="font-bold">{recipientMember.payoutAccount?.bankName || 'Member Bank'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/70">Account Number:</span>
-                  <span className="font-mono font-bold text-[#2FBF85]">{recipientMember.payoutAccount?.accountNumber || '0129482110'}</span>
+                  <span className="font-mono font-bold text-[#2FBF85]">{recipientMember.payoutAccount?.accountNumber || 'Account on file'}</span>
                 </div>
                 <div className="flex justify-between border-t border-white/10 pt-1">
                   <span className="text-white/70">Amount:</span>

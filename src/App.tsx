@@ -101,7 +101,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <DeviceFrame>
+    <DeviceFrame isDark={currentRoute === '/welcome' || currentRoute === '/sign-in'}>
       {renderScreen()}
 
 

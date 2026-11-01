@@ -21,7 +21,7 @@ export const M01Welcome: React.FC = () => {
   };
 
   return (
-    <div className="h-screen max-h-screen bg-[#0B3D2E] text-white flex flex-col justify-between overflow-hidden select-none">
+    <div className="h-full max-h-full w-full bg-[#0B3D2E] text-white flex flex-col justify-between overflow-hidden select-none overscroll-none">
       {/* Light status bar (white content) */}
       <StatusBar mode="dark" />
 

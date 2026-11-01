@@ -78,8 +78,8 @@ export const M12PayContribution: React.FC = () => {
   }
 
   const organiserAccount = targetGroup.organiserAccount || {
-    bankName: targetGroup.wallet?.bankName || 'Guaranty Trust Bank (GTBank)',
-    accountNumber: targetGroup.wallet?.accountNumber || '0129482110',
+    bankName: targetGroup.wallet?.bankName || 'Organizer Bank',
+    accountNumber: targetGroup.wallet?.accountNumber || '',
     accountName: targetGroup.organiserName || 'Group Organiser',
   };
 

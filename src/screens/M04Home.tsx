@@ -13,6 +13,8 @@ export const M04Home: React.FC = () => {
     currentUser,
     groups,
     activeGroup,
+    selectedGroupId,
+    setSelectedGroupId,
     activity,
     notifications,
     setJoinModalOpen,
@@ -173,6 +175,26 @@ export const M04Home: React.FC = () => {
                 </div>
               )}
 
+              {/* If user has multiple groups, show quick switcher */}
+              {groups.length > 1 && (
+                <div className="flex items-center justify-between bg-white rounded-[14px] p-2.5 px-3.5 border border-[#E3DDCF] shadow-xs">
+                  <span className="text-[12px] font-bold text-[#4F5F57] uppercase tracking-wider">
+                    {language === 'ha' ? 'Zaɓi Ƙungiya' : 'Active Group'}
+                  </span>
+                  <select
+                    value={targetGroup.id}
+                    onChange={(e) => setSelectedGroupId(e.target.value)}
+                    className="bg-[#FAF7F0] border border-[#E3DDCF] rounded-[8px] px-2.5 py-1 text-[13px] font-bold text-[#0B3D2E] focus:outline-none focus:border-[#0F8A5F] cursor-pointer max-w-[210px] truncate"
+                  >
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.organiserId === currentUser.id ? (language === 'ha' ? 'Mai Shirya' : 'Organiser') : (language === 'ha' ? 'Mamba' : 'Member')})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* ACTIVE POT CARD */}
               <div
                 onClick={() => navigate(`/groups/${targetGroup.id}/ledger`)}
@@ -239,23 +261,43 @@ export const M04Home: React.FC = () => {
                   </div>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate('/groups/invite')}
-                  className="p-3.5 rounded-[14px] bg-white border border-[#E3DDCF] flex items-center gap-3 text-left shadow-xs hover:border-[#0F8A5F] cursor-pointer transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-full bg-[#FAF7F0] text-[#0B3D2E] flex items-center justify-center shrink-0">
-                    <Icon name="send" size={18} strokeWidth={2.4} />
-                  </div>
-                  <div>
-                    <span className="font-heading font-bold text-[13px] text-[#0B3D2E] block">
-                      {language === 'ha' ? 'Gayyaci Mamba' : 'Invite Members'}
-                    </span>
-                    <span className="text-[11px] text-[#4F5F57] block font-mono">
-                      {targetGroup.code}
-                    </span>
-                  </div>
-                </button>
+                {isOrganiser ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/groups/invite')}
+                    className="p-3.5 rounded-[14px] bg-white border border-[#E3DDCF] flex items-center gap-3 text-left shadow-xs hover:border-[#0F8A5F] cursor-pointer transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#FAF7F0] text-[#0B3D2E] flex items-center justify-center shrink-0">
+                      <Icon name="send" size={18} strokeWidth={2.4} />
+                    </div>
+                    <div>
+                      <span className="font-heading font-bold text-[13px] text-[#0B3D2E] block">
+                        {language === 'ha' ? 'Gayyaci Mamba' : 'Invite Members'}
+                      </span>
+                      <span className="text-[11px] text-[#4F5F57] block font-mono">
+                        {targetGroup.code}
+                      </span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/groups/${targetGroup.id}/calendar`)}
+                    className="p-3.5 rounded-[14px] bg-white border border-[#E3DDCF] flex items-center gap-3 text-left shadow-xs hover:border-[#0F8A5F] cursor-pointer transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#FAF7F0] text-[#0B3D2E] flex items-center justify-center shrink-0">
+                      <Icon name="calendar" size={18} strokeWidth={2.4} />
+                    </div>
+                    <div>
+                      <span className="font-heading font-bold text-[13px] text-[#0B3D2E] block">
+                        {language === 'ha' ? 'Kalandar Rabo' : 'Payout Calendar'}
+                      </span>
+                      <span className="text-[11px] text-[#4F5F57] block">
+                        {targetGroup.rules.dueDay}
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             </>
           )}

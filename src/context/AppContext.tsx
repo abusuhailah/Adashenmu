@@ -206,6 +206,10 @@ interface AppContextType {
   isRoleModalOpen: boolean;
   setRoleModalOpen: (open: boolean) => void;
 
+  // Group switcher filter
+  groupFilter: 'all' | 'organiser' | 'member';
+  setGroupFilter: (filter: 'all' | 'organiser' | 'member') => void;
+
   // Member Payment History
   memberPaymentHistory: MemberPaymentHistoryItem[];
   isPaymentHistoryModalOpen: boolean;
@@ -239,7 +243,6 @@ const defaultCreateGroupDraft: CreateGroupDraft = {
   payoutOrder: 'fixed',
   startDate: '1st of next month',
   endDate: '5 months duration',
-  partnerBankName: 'Guaranty Trust Bank (GTBank)',
   agreedToRules: true,
 };
 
@@ -271,12 +274,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   const [isNinVerified, setNinVerified] = useState<boolean>(true);
-  const [partnerBank, setPartnerBank] = useState<PartnerBankAccount | null>({
-    bankName: 'Guaranty Trust Bank (GTBank)',
-    bankCode: '058',
-    accountNumber: '0129482110',
-    accountName: 'Suhailah',
-    isVerified: true,
+  const [partnerBank, setPartnerBank] = useState<PartnerBankAccount | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('adashenmu_bank_account');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return null;
   });
 
   // Groups and members: ZERO DEMO DATA! Real groups loaded from Firestore / localStorage
@@ -357,6 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [isRoleModalOpen, setRoleModalOpen] = useState(false);
   const [isGoogleAccountModalOpen, setGoogleAccountModalOpen] = useState(false);
+  const [groupFilter, setGroupFilter] = useState<'all' | 'organiser' | 'member'>('all');
 
   // Member Payment History state
   const [memberPaymentHistory, setMemberPaymentHistory] = useState<MemberPaymentHistoryItem[]>(() => {
@@ -778,6 +784,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isVerified: true,
     };
     setPartnerBank(data);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('adashenmu_bank_account', JSON.stringify(data));
+      } catch {}
+    }
     if (liveUserProfile?.id) {
       try {
         await updatePartnerBank(liveUserProfile.id, bank);
@@ -826,10 +837,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const organiserAccount: BankAccountDetails = createGroupDraft.organiserAccount || {
-      bankName: createGroupDraft.partnerBankName || partnerBank?.bankName || 'Guaranty Trust Bank (GTBank)',
-      accountNumber: partnerBank?.accountNumber || '0129482110',
+      bankName: createGroupDraft.partnerBankName || partnerBank?.bankName || '',
+      accountNumber: partnerBank?.accountNumber || '',
       accountName: partnerBank?.accountName || organiserProfile.displayName,
     };
+
+    if (!organiserAccount.bankName || !organiserAccount.accountNumber || !organiserAccount.accountName) {
+      throw new Error('Please enter your receiving bank account details.');
+    }
 
     let newGroup: Group;
 
@@ -1053,6 +1068,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         members: updatedMembers,
         memberIds: [...(match.memberIds || []), userProfile.id],
       };
+    }
+
+    // Auto-assign member role when joining via invite
+    setUserRoleState('member');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('adashenmu_user_role', 'member');
+    }
+    setRoleModalOpen(false);
+    if (userProfile.id) {
+      saveUserPrimaryRole(userProfile.id, 'member');
     }
 
     setGroups((prev) => {
@@ -1625,6 +1650,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setUserRole,
         isRoleModalOpen,
         setRoleModalOpen,
+        groupFilter,
+        setGroupFilter,
         memberPaymentHistory,
         isPaymentHistoryModalOpen,
         setPaymentHistoryModalOpen,

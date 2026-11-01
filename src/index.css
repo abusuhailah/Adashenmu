@@ -62,12 +62,19 @@
   --font-body: 'Inter', system-ui, sans-serif;
 }
 
-body {
-  font-family: var(--font-body);
-  background-color: #FAF7F0;
-  color: #0B3D2E;
+html, body, #root {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: #072A20;
+}
+
+body {
+  font-family: var(--font-body);
+  color: #0B3D2E;
 }
 
 h1, h2, h3, h4, .font-heading {

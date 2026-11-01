@@ -25,7 +25,7 @@ export const M14Receipt: React.FC = () => {
   const isConfirmedInPot = userContributionState === 'inThePot';
   const groupName = activeGroup?.name || 'Savings Group';
   const cycleNumber = activeGroup?.currentCycle?.number || 1;
-  const organiserBank = activeGroup?.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)';
+  const organiserBank = activeGroup?.organiserAccount?.bankName || activeGroup?.wallet?.bankName || 'Organizer Bank Account';
 
   const handleShare = () => {
     if (navigator.share) {

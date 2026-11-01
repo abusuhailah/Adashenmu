@@ -358,12 +358,12 @@ export async function createRealGroup(
     draft.organiserAccount?.bankName ||
     draft.partnerBankName ||
     organiser.partnerBank?.bankName ||
-    'Guaranty Trust Bank (GTBank)';
+    'Organizer Bank Account';
 
   const accNum =
     draft.organiserAccount?.accountNumber ||
     organiser.partnerBank?.accountNumber ||
-    '0' + Math.floor(100000000 + Math.random() * 900000000);
+    '';
 
   const accName =
     draft.organiserAccount?.accountName ||

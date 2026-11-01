@@ -20,6 +20,14 @@ export const M10CreateGroupReview: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  const isBankDetailsValid =
+    !!createGroupDraft.organiserAccount?.bankName &&
+    !!createGroupDraft.organiserAccount?.accountNumber &&
+    createGroupDraft.organiserAccount.accountNumber.length === 10 &&
+    !!createGroupDraft.organiserAccount?.accountName?.trim();
+
+  const canCreate = createGroupDraft.agreedToRules && isBankDetailsValid;
+
   const handleCreate = async () => {
     setIsSubmitting(true);
     try {
@@ -131,18 +139,19 @@ export const M10CreateGroupReview: React.FC = () => {
                   Bank Name
                 </label>
                 <select
-                  value={createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)'}
+                  value={createGroupDraft.organiserAccount?.bankName || ''}
                   onChange={(e) =>
                     updateCreateGroupDraft({
                       organiserAccount: {
                         bankName: e.target.value,
-                        accountNumber: createGroupDraft.organiserAccount?.accountNumber || '0129482110',
-                        accountName: createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart',
+                        accountNumber: createGroupDraft.organiserAccount?.accountNumber || '',
+                        accountName: createGroupDraft.organiserAccount?.accountName || '',
                       },
                     })
                   }
                   className="w-full h-[46px] px-3.5 rounded-[10px] bg-[#FAF7F0] border border-[#E3DDCF] text-[14px] text-[#0B3D2E] font-medium focus:border-[#0F8A5F] focus:outline-none"
                 >
+                  <option value="">-- Select Receiving Bank --</option>
                   <option value="Guaranty Trust Bank (GTBank)">Guaranty Trust Bank (GTBank)</option>
                   <option value="Zenith Bank">Zenith Bank</option>
                   <option value="Access Bank">Access Bank</option>
@@ -154,6 +163,10 @@ export const M10CreateGroupReview: React.FC = () => {
                   <option value="Stanbic IBTC Bank">Stanbic IBTC Bank</option>
                   <option value="Jaiz Bank">Jaiz Bank</option>
                   <option value="Taj Bank">Taj Bank</option>
+                  <option value="Fidelity Bank">Fidelity Bank</option>
+                  <option value="Union Bank">Union Bank</option>
+                  <option value="Wema Bank">Wema Bank</option>
+                  <option value="Palmpay">Palmpay</option>
                 </select>
               </div>
 
@@ -165,14 +178,14 @@ export const M10CreateGroupReview: React.FC = () => {
                   <input
                     type="text"
                     maxLength={10}
-                    placeholder="0123456789"
-                    value={createGroupDraft.organiserAccount?.accountNumber || '0129482110'}
+                    placeholder="10-digit number"
+                    value={createGroupDraft.organiserAccount?.accountNumber || ''}
                     onChange={(e) =>
                       updateCreateGroupDraft({
                         organiserAccount: {
-                          bankName: createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)',
+                          bankName: createGroupDraft.organiserAccount?.bankName || '',
                           accountNumber: e.target.value.replace(/\D/g, ''),
-                          accountName: createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart',
+                          accountName: createGroupDraft.organiserAccount?.accountName || '',
                         },
                       })
                     }
@@ -186,12 +199,12 @@ export const M10CreateGroupReview: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Account Name"
-                    value={createGroupDraft.organiserAccount?.accountName || 'Suhailah Mart'}
+                    value={createGroupDraft.organiserAccount?.accountName || ''}
                     onChange={(e) =>
                       updateCreateGroupDraft({
                         organiserAccount: {
-                          bankName: createGroupDraft.organiserAccount?.bankName || 'Guaranty Trust Bank (GTBank)',
-                          accountNumber: createGroupDraft.organiserAccount?.accountNumber || '0129482110',
+                          bankName: createGroupDraft.organiserAccount?.bankName || '',
+                          accountNumber: createGroupDraft.organiserAccount?.accountNumber || '',
                           accountName: e.target.value,
                         },
                       })
@@ -218,8 +231,15 @@ export const M10CreateGroupReview: React.FC = () => {
             </div>
           </div>
 
+          {/* Bank validation warning if incomplete */}
+          {!isBankDetailsValid && (
+            <p className="text-[12px] text-[#B42318] font-semibold bg-[#FDECEA] p-2.5 rounded-[10px] border border-[#B42318]/20">
+              Please enter your receiving bank name, 10-digit account number, and account name above to proceed.
+            </p>
+          )}
+
           {/* Checkbox confirmation */}
-          <label className="flex items-start gap-3 pt-2 cursor-pointer select-none">
+          <label className="flex items-start gap-3 pt-1 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={createGroupDraft.agreedToRules}
@@ -237,11 +257,11 @@ export const M10CreateGroupReview: React.FC = () => {
       <div className="p-5 pt-3 pb-8 bg-white border-t border-[#E3DDCF]">
         <button
           type="button"
-          disabled={!createGroupDraft.agreedToRules}
+          disabled={!canCreate || isSubmitting}
           onClick={handleCreate}
           className="w-full h-[52px] rounded-[14px] bg-[#0F8A5F] active:bg-[#0B6E4B] text-white font-heading font-bold text-[16px] flex items-center justify-center cursor-pointer shadow-sm hover:brightness-105 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Create group
+          {isSubmitting ? 'Creating group…' : 'Create group'}
         </button>
       </div>
     </div>
